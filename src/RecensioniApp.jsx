@@ -15,6 +15,7 @@ import {
 import emailjs from '@emailjs/browser';
 
 // === CONFIGURAZIONE EMAILJS ===
+// Inserisci qui i valori reali quando configuri EmailJS
 const EMAILJS_SERVICE_ID = 'INSERISCI_SERVICE_ID';
 const EMAILJS_TEMPLATE_ID = 'INSERISCI_TEMPLATE_ID';
 const EMAILJS_PUBLIC_KEY = 'INSERISCI_PUBLIC_KEY';
@@ -119,6 +120,13 @@ const RecensioniApp = () => {
     'Novembre',
     'Dicembre'
   ];
+
+  // PALETTE COLORI (mixa i 3 RGB dati)
+  const COLORS = {
+    accent: 'rgb(255, 97, 15)', // arancio
+    secondary: 'rgb(5, 191, 224)', // azzurro
+    primary: 'rgb(79, 23, 168)' // viola
+  };
 
   // Inizializza EmailJS una volta sola (se configurato)
   useEffect(() => {
@@ -237,58 +245,69 @@ const RecensioniApp = () => {
       copertina: '',
       ...calcolaDate('')
     };
-    setLibri([...libri, nuovoLibro]);
+    setLibri((prev) => [...prev, nuovoLibro]);
   };
 
+  // VERSIONE CORRETTA, FUNZIONALE, CON SALVATAGGIO
   const aggiornaLibro = (id, campo, valore) => {
-    const nuoviLibri = libri.map((libro) => {
-      if (libro.id === id) {
-        const libroAggiornato = { ...libro, [campo]: valore };
+    setLibri((prevLibri) => {
+      const nuoviLibri = prevLibri.map((libro) => {
+        if (libro.id !== id) return libro;
+
+        let libroAggiornato = { ...libro, [campo]: valore };
 
         if (campo === 'mese') {
           const date = calcolaDate(valore);
-          return { ...libroAggiornato, ...date };
+          libroAggiornato = { ...libroAggiornato, ...date };
         }
 
         if (campo === 'nomeCognome') {
           const parti = valore.trim().split(' ');
-          libroAggiornato.nome = parti[0] || '';
-          libroAggiornato.cognome = parti.slice(1).join(' ') || '';
+          libroAggiornato = {
+            ...libroAggiornato,
+            nome: parti[0] || '',
+            cognome: parti.slice(1).join(' ') || ''
+          };
         }
 
         return libroAggiornato;
-      }
-      return libro;
+      });
+
+      // salvo subito anche su localStorage
+      storage.set(`libri_${anno}`, JSON.stringify(nuoviLibri));
+      return nuoviLibri;
     });
-    setLibri(nuoviLibri);
   };
 
   const rimuoviLibro = (id) => {
-    setLibri(libri.filter((libro) => libro.id !== id));
+    setLibri((prev) => prev.filter((libro) => libro.id !== id));
   };
 
   // Svuota i dati del recensore per un libro (admin)
   const clearReviewer = (id) => {
-    const nuoviLibri = libri.map((libro) => {
-      if (libro.id === id) {
-        return {
-          ...libro,
-          nomeCognome: '',
-          nome: '',
-          cognome: '',
-          email: '',
-          mese: '',
-          dataPubblicazione: '',
-          dataInvioInfo: '',
-          dataInvioRecensione: '',
-          dataInvioCommenti: '',
-          dataInvioRecensioneConCommenti: '',
-          dataPreparazionePubblicazione: ''
-        };
-      }
-      return libro;
+    setLibri((prevLibri) => {
+      const nuoviLibri = prevLibri.map((libro) => {
+        if (libro.id === id) {
+          return {
+            ...libro,
+            nomeCognome: '',
+            nome: '',
+            cognome: '',
+            email: '',
+            mese: '',
+            dataPubblicazione: '',
+            dataInvioInfo: '',
+            dataInvioRecensione: '',
+            dataInvioCommenti: '',
+            dataInvioRecensioneConCommenti: '',
+            dataPreparazionePubblicazione: ''
+          };
+        }
+        return libro;
+      });
+      storage.set(`libri_${anno}`, JSON.stringify(nuoviLibri));
+      return nuoviLibri;
     });
-    setLibri(nuoviLibri);
     showMessage('Recensione svuotata per questo libro', 'success');
   };
 
@@ -444,6 +463,94 @@ const RecensioniApp = () => {
     ? libri
     : libri.filter((l) => !l.nomeCognome);
 
+  // --- STILI COMUNI ---
+  const appWrapperStyle = {
+    minHeight: '100vh',
+    padding: '24px',
+    backgroundImage: backgroundImage
+      ? `url(${backgroundImage})`
+      : `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundAttachment: 'fixed',
+    fontFamily:
+      'Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  };
+
+  const appInnerStyle = {
+    maxWidth: '1200px',
+    margin: '0 auto'
+  };
+
+  const headerCardStyle = {
+    background: 'rgba(255,255,255,0.96)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '20px',
+    boxShadow: '0 20px 40px rgba(15,23,42,0.10)',
+    padding: '24px',
+    marginBottom: '24px'
+  };
+
+  // Griglia SEMPRE a 3 colonne, per quanti libri vuoi
+  const cardGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: '20px',
+    marginBottom: '32px',
+    alignItems: 'stretch'
+  };
+
+  const bookCardStyle = {
+    background: 'rgba(255,255,255,0.97)',
+    borderRadius: '16px',
+    boxShadow: '0 10px 20px rgba(15,23,42,0.08)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
+  };
+
+  const coverStyle = {
+    width: '100%',
+    maxHeight: '220px',
+    objectFit: 'cover',
+    display: 'block'
+  };
+
+  const bookBodyStyle = {
+    padding: '16px 18px 18px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  };
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#6b7280',
+    marginBottom: '4px'
+  };
+
+  const inputStyle = {
+    width: '100%',
+    borderRadius: '8px',
+    border: '1px solid #d1d5db',
+    padding: '6px 10px',
+    fontSize: '13px'
+  };
+
+  const smallTagStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: '#f3f4f6',
+    borderRadius: '999px',
+    padding: '4px 10px',
+    fontSize: '11px',
+    color: '#4b5563'
+  };
+
+  // --- SCHERMATA LOGIN ---
   if (showLogin) {
     return (
       <div
@@ -453,7 +560,9 @@ const RecensioniApp = () => {
           alignItems: 'center',
           justifyContent: 'center',
           background: 'linear-gradient(135deg,#e0f2fe,#e0e7ff)',
-          padding: '16px'
+          padding: '16px',
+          fontFamily:
+            'Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
         }}
       >
         <div
@@ -469,7 +578,7 @@ const RecensioniApp = () => {
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <BookOpen
               size={56}
-              color="#4f46e5"
+              color={COLORS.primary}
               style={{ marginBottom: '12px' }}
             />
             <h1
@@ -495,7 +604,7 @@ const RecensioniApp = () => {
               }}
               style={{
                 width: '100%',
-                background: '#4f46e5',
+                background: COLORS.primary,
                 color: '#ffffff',
                 padding: '10px 16px',
                 borderRadius: '10px',
@@ -563,90 +672,7 @@ const RecensioniApp = () => {
     );
   }
 
-  // --- STILI COMUNI ---
-  const appWrapperStyle = {
-    minHeight: '100vh',
-    padding: '24px',
-    backgroundImage: backgroundImage
-      ? `url(${backgroundImage})`
-      : 'linear-gradient(135deg,#eff6ff,#e0f2fe)',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundAttachment: 'fixed',
-    fontFamily: '"system-ui",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-  };
-
-  const appInnerStyle = {
-    maxWidth: '1200px',
-    margin: '0 auto'
-  };
-
-  const headerCardStyle = {
-    background: 'rgba(255,255,255,0.96)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '20px',
-    boxShadow: '0 20px 40px rgba(15,23,42,0.10)',
-    padding: '24px',
-    marginBottom: '24px'
-  };
-
-  const cardGridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))',
-    gap: '20px',
-    marginBottom: '32px'
-  };
-
-  const bookCardStyle = {
-    background: 'rgba(255,255,255,0.97)',
-    borderRadius: '16px',
-    boxShadow: '0 10px 20px rgba(15,23,42,0.08)',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column'
-  };
-
-  const coverStyle = {
-    width: '100%',
-    maxHeight: '220px',
-    objectFit: 'cover',
-    display: 'block'
-  };
-
-  const bookBodyStyle = {
-    padding: '16px 18px 18px 18px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  };
-
-  const labelStyle = {
-    display: 'block',
-    fontSize: '12px',
-    fontWeight: 600,
-    color: '#6b7280',
-    marginBottom: '4px'
-  };
-
-  const inputStyle = {
-    width: '100%',
-    borderRadius: '8px',
-    border: '1px solid #d1d5db',
-    padding: '6px 10px',
-    fontSize: '13px'
-  };
-
-  const smallTagStyle = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    background: '#f3f4f6',
-    borderRadius: '999px',
-    padding: '4px 10px',
-    fontSize: '11px',
-    color: '#4b5563'
-  };
-
+  // --- APP PRINCIPALE ---
   return (
     <div style={appWrapperStyle}>
       <div style={appInnerStyle}>
@@ -663,7 +689,7 @@ const RecensioniApp = () => {
           >
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <BookOpen size={32} color="#4f46e5" />
+                <BookOpen size={32} color={COLORS.primary} />
                 <h1
                   style={{
                     fontSize: '24px',
@@ -675,7 +701,13 @@ const RecensioniApp = () => {
                   SICBookReview – {anno}
                 </h1>
               </div>
-              <p style={{ marginTop: '6px', color: '#6b7280', fontSize: '14px' }}>
+              <p
+                style={{
+                  marginTop: '6px',
+                  color: '#6b7280',
+                  fontSize: '14px'
+                }}
+              >
                 Modalità{' '}
                 <strong>{isAdmin ? 'Amministratore' : 'Recensore'}</strong> ·
                 &nbsp;Recensioni assegnate: {recensioniAttive}/12
@@ -705,7 +737,7 @@ const RecensioniApp = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
-                      background: '#4f46e5',
+                      background: COLORS.primary,
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '8px',
@@ -723,7 +755,7 @@ const RecensioniApp = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
-                      background: '#16a34a',
+                      background: COLORS.accent,
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '8px',
@@ -740,7 +772,7 @@ const RecensioniApp = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
-                      background: '#7c3aed',
+                      background: COLORS.secondary,
                       color: '#ffffff',
                       borderRadius: '8px',
                       padding: '8px 10px',
@@ -795,358 +827,420 @@ const RecensioniApp = () => {
               {message.text}
             </div>
           )}
-
-          {isBloccato && !isAdmin && (
-            <div
-              style={{
-                marginTop: '12px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                fontSize: '13px',
-                color: '#92400e',
-                background: '#fef3c7'
-              }}
-            >
-              Limite di 12 recensioni raggiunto. Contatta l&apos;amministratore
-              per modifiche.
-            </div>
-          )}
         </div>
 
-        {/* LIBRI */}
-        <div style={cardGridStyle}>
-          {libriVisibili.map((libro) => (
-            <div key={libro.id} style={bookCardStyle}>
-              {libro.copertina && (
-                <img
-                  src={libro.copertina}
-                  alt={libro.titolo}
-                  style={coverStyle}
-                />
-              )}
+        {/* LIBRI o MESSAGGIO SLOT ESAURITI */}
+        {!isAdmin && isBloccato ? (
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.98)',
+              borderRadius: '18px',
+              boxShadow: '0 16px 30px rgba(15,23,42,0.15)',
+              padding: '24px',
+              textAlign: 'center',
+              maxWidth: '640px',
+              margin: '16px auto 0 auto'
+            }}
+          >
+            <h2
+              style={{
+                fontSize: '20px',
+                fontWeight: 700,
+                color: '#111827',
+                margin: 0,
+                marginBottom: '8px'
+              }}
+            >
+              Ci dispiace…
+            </h2>
+            <p
+              style={{
+                fontSize: '14px',
+                color: '#4b5563',
+                margin: 0,
+                marginBottom: '4px'
+              }}
+            >
+              Abbiamo raggiunto il numero massimo di candidature per le
+              recensioni di quest&apos;anno.
+            </p>
+            <p
+              style={{
+                fontSize: '14px',
+                color: '#4b5563',
+                margin: 0
+              }}
+            >
+              Scrivi una email ai referenti del PMI-SIC, così che possano
+              contattarti qualora si liberasse uno slot per una recensione.
+            </p>
+          </div>
+        ) : (
+          <div style={cardGridStyle}>
+            {libriVisibili.map((libro) => (
+              <div key={libro.id} style={bookCardStyle}>
+                {libro.copertina && (
+                  <img
+                    src={libro.copertina}
+                    alt={libro.titolo}
+                    style={coverStyle}
+                  />
+                )}
 
-              <div style={bookBodyStyle}>
-                {/* HEADER CARD */}
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: 4
-                  }}
-                >
-                  <span
+                <div style={bookBodyStyle}>
+                  {/* HEADER CARD */}
+                  <div
                     style={{
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      color: '#4f46e5'
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: 4
                     }}
                   >
-                    ID: {libro.id}
-                  </span>
-                  {isAdmin && (
-                    <button
-                      onClick={() => rimuoviLibro(libro.id)}
+                    <span
                       style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#ef4444',
-                        cursor: 'pointer'
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: COLORS.primary
                       }}
-                      title="Elimina libro"
                     >
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-
-                {/* CONTENUTO PRINCIPALE */}
-                {isAdmin ? (
-                  <>
-                    <div>
-                      <label style={labelStyle}>Titolo</label>
-                      <input
-                        type="text"
-                        value={libro.titolo}
-                        onChange={(e) =>
-                          aggiornaLibro(libro.id, 'titolo', e.target.value)
-                        }
+                      ID: {libro.id}
+                    </span>
+                    {isAdmin && (
+                      <button
+                        onClick={() => rimuoviLibro(libro.id)}
                         style={{
-                          ...inputStyle,
-                          fontWeight: 600,
-                          fontSize: '14px'
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#ef4444',
+                          cursor: 'pointer'
                         }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={labelStyle}>Autore</label>
-                      <input
-                        type="text"
-                        value={libro.autore}
-                        onChange={(e) =>
-                          aggiornaLibro(libro.id, 'autore', e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={labelStyle}>Link Amazon</label>
-                      <input
-                        type="url"
-                        value={libro.link}
-                        onChange={(e) =>
-                          aggiornaLibro(libro.id, 'link', e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={labelStyle}>Pagine</label>
-                      <input
-                        type="number"
-                        value={libro.pagine}
-                        onChange={(e) =>
-                          aggiornaLibro(libro.id, 'pagine', e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={labelStyle}>Copertina</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageUpload(e, libro.id)}
-                        style={{ fontSize: '11px' }}
-                      />
-                    </div>
-
-                    <hr
-                      style={{
-                        margin: '10px 0',
-                        border: 'none',
-                        borderTop: '1px solid #e5e7eb'
-                      }}
-                    />
-
-                    {/* DETTAGLI RECENSORE PER ADMIN */}
-                    <div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          marginBottom: 6
-                        }}
+                        title="Elimina libro"
                       >
-                        <User size={14} color="#6b7280" />
-                        <span
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* CONTENUTO PRINCIPALE */}
+                  {isAdmin ? (
+                    <>
+                      <div>
+                        <label style={labelStyle}>Titolo</label>
+                        <input
+                          type="text"
+                          value={libro.titolo}
+                          onChange={(e) =>
+                            aggiornaLibro(
+                              libro.id,
+                              'titolo',
+                              e.target.value
+                            )
+                          }
                           style={{
-                            fontSize: '13px',
+                            ...inputStyle,
                             fontWeight: 600,
-                            color: '#111827'
+                            fontSize: '14px'
                           }}
-                        >
-                          Recensore
-                        </span>
+                        />
                       </div>
 
-                      {libro.nomeCognome ? (
-                        <>
-                          <div style={{ fontSize: '12px', color: '#374151' }}>
-                            <strong>Nome:</strong> {libro.nome || '-'}
-                          </div>
-                          <div style={{ fontSize: '12px', color: '#374151' }}>
-                            <strong>Cognome:</strong> {libro.cognome || '-'}
-                          </div>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              marginTop: 4,
-                              fontSize: '12px',
-                              color: '#374151'
-                            }}
-                          >
-                            <Mail size={14} color="#6b7280" />
-                            <span>{libro.email}</span>
-                          </div>
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              marginTop: 4,
-                              fontSize: '12px',
-                              color: '#374151'
-                            }}
-                          >
-                            <Calendar size={14} color="#6b7280" />
-                            <span>
-                              <strong>Mese:</strong> {libro.mese}
-                            </span>
-                          </div>
+                      <div>
+                        <label style={labelStyle}>Autore</label>
+                        <input
+                          type="text"
+                          value={libro.autore}
+                          onChange={(e) =>
+                            aggiornaLibro(
+                              libro.id,
+                              'autore',
+                              e.target.value
+                            )
+                          }
+                          style={inputStyle}
+                        />
+                      </div>
 
-                          {libro.dataPubblicazione && (
+                      <div>
+                        <label style={labelStyle}>Link Amazon</label>
+                        <input
+                          type="url"
+                          value={libro.link}
+                          onChange={(e) =>
+                            aggiornaLibro(
+                              libro.id,
+                              'link',
+                              e.target.value
+                            )
+                          }
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={labelStyle}>Pagine</label>
+                        <input
+                          type="number"
+                          value={libro.pagine}
+                          onChange={(e) =>
+                            aggiornaLibro(
+                              libro.id,
+                              'pagine',
+                              e.target.value
+                            )
+                          }
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={labelStyle}>Copertina</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageUpload(e, libro.id)}
+                          style={{ fontSize: '11px' }}
+                        />
+                      </div>
+
+                      <hr
+                        style={{
+                          margin: '10px 0',
+                          border: 'none',
+                          borderTop: '1px solid #e5e7eb'
+                        }}
+                      />
+
+                      {/* DETTAGLI RECENSORE PER ADMIN */}
+                      <div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            marginBottom: 6
+                          }}
+                        >
+                          <User size={14} color="#6b7280" />
+                          <span
+                            style={{
+                              fontSize: '13px',
+                              fontWeight: 600,
+                              color: '#111827'
+                            }}
+                          >
+                            Recensore
+                          </span>
+                        </div>
+
+                        {libro.nomeCognome ? (
+                          <>
                             <div
                               style={{
-                                marginTop: 8,
-                                padding: '8px 10px',
-                                background: '#f9fafb',
-                                borderRadius: '8px',
-                                fontSize: '11px',
+                                fontSize: '12px',
                                 color: '#374151'
                               }}
                             >
-                              <div>
-                                <strong>Pubblicazione:</strong>{' '}
-                                {libro.dataPubblicazione}
-                              </div>
-                              <div>
-                                <strong>Invio info:</strong>{' '}
-                                {libro.dataInvioInfo}
-                              </div>
-                              <div>
-                                <strong>Invio recensione:</strong>{' '}
-                                {libro.dataInvioRecensione}
-                              </div>
-                              <div>
-                                <strong>Invio commenti:</strong>{' '}
-                                {libro.dataInvioCommenti}
-                              </div>
-                              <div>
-                                <strong>Recensione+commenti:</strong>{' '}
-                                {libro.dataInvioRecensioneConCommenti}
-                              </div>
-                              <div>
-                                <strong>Preparazione:</strong>{' '}
-                                {libro.dataPreparazionePubblicazione}
-                              </div>
+                              <strong>Nome:</strong> {libro.nome || '-'}
                             </div>
-                          )}
+                            <div
+                              style={{
+                                fontSize: '12px',
+                                color: '#374151'
+                              }}
+                            >
+                              <strong>Cognome:</strong>{' '}
+                              {libro.cognome || '-'}
+                            </div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                marginTop: 4,
+                                fontSize: '12px',
+                                color: '#374151'
+                              }}
+                            >
+                              <Mail size={14} color="#6b7280" />
+                              <span>{libro.email}</span>
+                            </div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                marginTop: 4,
+                                fontSize: '12px',
+                                color: '#374151'
+                              }}
+                            >
+                              <Calendar size={14} color="#6b7280" />
+                              <span>
+                                <strong>Mese:</strong> {libro.mese}
+                              </span>
+                            </div>
 
-                          <div
+                            {libro.dataPubblicazione && (
+                              <div
+                                style={{
+                                  marginTop: 8,
+                                  padding: '8px 10px',
+                                  background: '#f9fafb',
+                                  borderRadius: '8px',
+                                  fontSize: '11px',
+                                  color: '#374151'
+                                }}
+                              >
+                                <div>
+                                  <strong>Pubblicazione:</strong>{' '}
+                                  {libro.dataPubblicazione}
+                                </div>
+                                <div>
+                                  <strong>Invio info:</strong>{' '}
+                                  {libro.dataInvioInfo}
+                                </div>
+                                <div>
+                                  <strong>Invio recensione:</strong>{' '}
+                                  {libro.dataInvioRecensione}
+                                </div>
+                                <div>
+                                  <strong>Invio commenti:</strong>{' '}
+                                  {libro.dataInvioCommenti}
+                                </div>
+                                <div>
+                                  <strong>Recensione+commenti:</strong>{' '}
+                                  {libro.dataInvioRecensioneConCommenti}
+                                </div>
+                                <div>
+                                  <strong>Preparazione:</strong>{' '}
+                                  {
+                                    libro.dataPreparazionePubblicazione
+                                  }
+                                </div>
+                              </div>
+                            )}
+
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: 8,
+                                marginTop: 10
+                              }}
+                            >
+                              <button
+                                onClick={() => clearReviewer(libro.id)}
+                                style={{
+                                  flex: 1,
+                                  borderRadius: '8px',
+                                  border: '1px solid #d1d5db',
+                                  background: '#f3f4f6',
+                                  fontSize: '12px',
+                                  padding: '6px 8px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Svuota recensione
+                              </button>
+                              <button
+                                onClick={() => handleSendEmail(libro)}
+                                style={{
+                                  flex: 1,
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  background: COLORS.primary,
+                                  color: '#fff',
+                                  fontSize: '12px',
+                                  padding: '6px 8px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Invia email
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <span
                             style={{
-                              display: 'flex',
-                              gap: 8,
-                              marginTop: 10
+                              fontSize: '12px',
+                              color: '#9ca3af'
                             }}
                           >
-                            <button
-                              onClick={() => clearReviewer(libro.id)}
-                              style={{
-                                flex: 1,
-                                borderRadius: '8px',
-                                border: '1px solid #d1d5db',
-                                background: '#f3f4f6',
-                                fontSize: '12px',
-                                padding: '6px 8px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Svuota recensione
-                            </button>
-                            <button
-                              onClick={() => handleSendEmail(libro)}
-                              style={{
-                                flex: 1,
-                                borderRadius: '8px',
-                                border: 'none',
-                                background: '#4f46e5',
-                                color: '#fff',
-                                fontSize: '12px',
-                                padding: '6px 8px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Invia email
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <span
-                          style={{
-                            fontSize: '12px',
-                            color: '#9ca3af'
-                          }}
-                        >
-                          Nessun recensore assegnato
-                        </span>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  // VISTA RECENSORE
-                  <>
-                    <h3
-                      style={{
-                        fontSize: '16px',
-                        fontWeight: 700,
-                        color: '#111827',
-                        margin: 0
-                      }}
-                    >
-                      {libro.titolo || 'Titolo non disponibile'}
-                    </h3>
-                    <p
-                      style={{
-                        fontSize: '13px',
-                        color: '#4b5563',
-                        margin: 0
-                      }}
-                    >
-                      di {libro.autore || 'Autore non disponibile'}
-                    </p>
-                    {libro.pagine && (
-                      <span style={smallTagStyle}>Pagine: {libro.pagine}</span>
-                    )}
-                    {libro.link && (
-                      <a
-                        href={libro.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                            Nessun recensore assegnato
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    // VISTA RECENSORE
+                    <>
+                      <h3
                         style={{
-                          fontSize: '12px',
-                          color: '#4f46e5',
-                          textDecoration: 'none',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          marginTop: 4
+                          fontSize: '16px',
+                          fontWeight: 700,
+                          color: '#111827',
+                          margin: 0
                         }}
                       >
-                        <ExternalLink size={14} />
-                        Vedi su Amazon
-                      </a>
-                    )}
+                        {libro.titolo || 'Titolo non disponibile'}
+                      </h3>
+                      <p
+                        style={{
+                          fontSize: '13px',
+                          color: '#4b5563',
+                          margin: 0
+                        }}
+                      >
+                        di {libro.autore || 'Autore non disponibile'}
+                      </p>
+                      {libro.pagine && (
+                        <span style={smallTagStyle}>
+                          Pagine: {libro.pagine}
+                        </span>
+                      )}
+                      {libro.link && (
+                        <a
+                          href={libro.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            fontSize: '12px',
+                            color: COLORS.primary,
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            marginTop: 4
+                          }}
+                        >
+                          <ExternalLink size={14} />
+                          Vedi su Amazon
+                        </a>
+                      )}
 
-                    <button
-                      onClick={() => selezionaLibro(libro)}
-                      style={{
-                        marginTop: '10px',
-                        width: '100%',
-                        borderRadius: '10px',
-                        border: 'none',
-                        background: '#4f46e5',
-                        color: '#fff',
-                        fontSize: '13px',
-                        padding: '8px 10px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Seleziona questo libro
-                    </button>
-                  </>
-                )}
+                      <button
+                        onClick={() => selezionaLibro(libro)}
+                        style={{
+                          marginTop: '10px',
+                          width: '100%',
+                          borderRadius: '10px',
+                          border: 'none',
+                          background: COLORS.primary,
+                          color: '#fff',
+                          fontSize: '13px',
+                          padding: '8px 10px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Seleziona questo libro
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* MODALE SELEZIONE RECENSORE */}
         {selectedBook && (
@@ -1291,7 +1385,7 @@ const RecensioniApp = () => {
                     flex: 1,
                     borderRadius: '10px',
                     border: 'none',
-                    background: '#4f46e5',
+                    background: COLORS.primary,
                     color: '#ffffff',
                     fontSize: '13px',
                     padding: '8px 10px',
@@ -1380,7 +1474,7 @@ const RecensioniApp = () => {
                     width: '100%',
                     borderRadius: '10px',
                     border: 'none',
-                    background: '#4f46e5',
+                    background: COLORS.primary,
                     color: '#ffffff',
                     fontSize: '13px',
                     padding: '8px 10px',
@@ -1413,7 +1507,7 @@ const RecensioniApp = () => {
                 gap: 8
               }}
             >
-              <FileText size={20} color="#4f46e5" />
+              <FileText size={20} color={COLORS.primary} />
               Configurazione email ai recensori
             </h2>
             <p
