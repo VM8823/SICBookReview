@@ -455,12 +455,36 @@ const RecensioniApp = () => {
     setShowPostConfirmModal(false);
   };
 
-  const recensioniAttive = libri.filter((l) => l.nomeCognome).length;
+    const recensioniAttive = libri.filter((l) => l.nomeCognome).length;
   const isBloccato = recensioniAttive >= 12;
+
+  // Ordinamento libri per l'amministratore:
+  // 1) prima i libri assegnati (con nomeCognome)
+  // 2) ordinati per mese da Gennaio a Dicembre
+  // 3) poi i libri non scelti (ordinati per titolo)
+  const libriOrdinatiPerAdmin = [...libri].sort((a, b) => {
+    const aAssigned = !!a.nomeCognome;
+    const bAssigned = !!b.nomeCognome;
+
+    if (aAssigned && !bAssigned) return -1;
+    if (!aAssigned && bAssigned) return 1;
+
+    if (aAssigned && bAssigned) {
+      const ia = MESI.indexOf(a.mese);
+      const ib = MESI.indexOf(b.mese);
+      if (ia !== -1 && ib !== -1 && ia !== ib) return ia - ib;
+    }
+
+    const titoloA = (a.titolo || '').toLowerCase();
+    const titoloB = (b.titolo || '').toLowerCase();
+    if (titoloA < titoloB) return -1;
+    if (titoloA > titoloB) return 1;
+    return 0;
+  });
 
   // Privacy: per il recensore mostro SOLO i libri liberi
   const libriVisibili = isAdmin
-    ? libri
+    ? libriOrdinatiPerAdmin
     : libri.filter((l) => !l.nomeCognome);
 
   // --- STILI COMUNI ---
@@ -878,7 +902,17 @@ const RecensioniApp = () => {
         ) : (
           <div style={cardGridStyle}>
             {libriVisibili.map((libro) => (
-              <div key={libro.id} style={bookCardStyle}>
+               <div
+                key={libro.id}
+                style={{
+                  ...bookCardStyle,
+                  background: libro.nomeCognome
+                    ? '#dcfce7' // verde chiaro per libri assegnati
+                    : !libro.nomeCognome && isBloccato && isAdmin
+                    ? '#f3f4f6' // grigio chiaro per libri non scelti quando 12/12
+                    : bookCardStyle.background
+                }}
+              >
                 {libro.copertina && (
                   <img
                     src={libro.copertina}
@@ -888,12 +922,12 @@ const RecensioniApp = () => {
                 )}
 
                 <div style={bookBodyStyle}>
-                  {/* HEADER CARD */}
+                {/* HEADER CARD */}
                   <div
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'flex-start',
+                      alignItems: 'center',
                       marginBottom: 4
                     }}
                   >
@@ -907,18 +941,37 @@ const RecensioniApp = () => {
                       ID: {libro.id}
                     </span>
                     {isAdmin && (
-                      <button
-                        onClick={() => rimuoviLibro(libro.id)}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          color: '#ef4444',
-                          cursor: 'pointer'
-                        }}
-                        title="Elimina libro"
-                      >
-                        <X size={16} />
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {libro.nomeCognome && (
+                          <button
+                            onClick={() => clearReviewer(libro.id)}
+                            style={{
+                              border: 'none',
+                              background: '#e5f9ed',
+                              color: '#166534',
+                              borderRadius: '999px',
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              cursor: 'pointer'
+                            }}
+                            title="Libera questo libro (rimuovi il recensore)"
+                          >
+                            Libera libro
+                          </button>
+                        )}
+                        <button
+                          onClick={() => rimuoviLibro(libro.id)}
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: '#ef4444',
+                            cursor: 'pointer'
+                          }}
+                          title="Elimina libro"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -1140,7 +1193,7 @@ const RecensioniApp = () => {
                                   cursor: 'pointer'
                                 }}
                               >
-                                Svuota recensione
+                                Libera Libro
                               </button>
                               <button
                                 onClick={() => handleSendEmail(libro)}
@@ -1198,23 +1251,29 @@ const RecensioniApp = () => {
                           Pagine: {libro.pagine}
                         </span>
                       )}
-                      {libro.link && (
+                                            {libro.link && (
                         <a
                           href={libro.link}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{
-                            fontSize: '12px',
-                            color: COLORS.primary,
-                            textDecoration: 'none',
+                            marginTop: '8px',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 4,
-                            marginTop: 4
+                            justifyContent: 'center',
+                            gap: 6,
+                            padding: '6px 10px',
+                            borderRadius: '999px',
+                            background: COLORS.secondary,
+                            color: '#ffffff',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            cursor: 'pointer'
                           }}
                         >
                           <ExternalLink size={14} />
-                          Vedi su Amazon
+                          Amazon
                         </a>
                       )}
 
