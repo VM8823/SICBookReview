@@ -15,10 +15,9 @@ import {
 import emailjs from '@emailjs/browser';
 
 // === CONFIGURAZIONE EMAILJS ===
-// Inserisci qui i valori reali quando configuri EmailJS
-const EMAILJS_SERVICE_ID = 'INSERISCI_SERVICE_ID';
-const EMAILJS_TEMPLATE_ID = 'INSERISCI_TEMPLATE_ID';
-const EMAILJS_PUBLIC_KEY = 'INSERISCI_PUBLIC_KEY';
+const EMAILJS_SERVICE_ID = 'service_u4jt49x';
+const EMAILJS_TEMPLATE_ID = 'template_alvdimz';
+const EMAILJS_PUBLIC_KEY = '7XpH6J5xigFu_9mum';
 
 // === STORAGE LOCALE (localStorage) ===
 const storage = {
@@ -43,24 +42,27 @@ const storage = {
 };
 
 // Sostituzione segnaposto nel template email
-const applyTemplate = (template, libro) => {
+const applyTemplate = (template, context) => {
   if (!template) return '';
 
   const map = {
-    '{{Nome}}': libro.nome || '',
-    '{{Cognome}}': libro.cognome || '',
-    '{{NomeCompleto}}': libro.nomeCognome || '',
-    '{{Titolo}}': libro.titolo || '',
-    '{{Autore}}': libro.autore || '',
-    '{{Mese}}': libro.mese || '',
-    '{{DataPubblicazione}}': libro.dataPubblicazione || '',
-    '{{DataInvioInfo}}': libro.dataInvioInfo || '',
-    '{{DataInvioRecensione}}': libro.dataInvioRecensione || '',
-    '{{DataInvioCommenti}}': libro.dataInvioCommenti || '',
+    '{{Nome}}': context.nome || '',
+    '{{Cognome}}': context.cognome || '',
+    '{{NomeCompleto}}': context.nomeCognome || '',
+    '{{Titolo}}': context.titolo || '',
+    '{{Autore}}': context.autore || '',
+    '{{Mese}}': context.mese || '',
+    '{{DataPubblicazione}}': context.dataPubblicazione || '',
+    '{{DataInvioInfo}}': context.dataInvioInfo || '',
+    '{{DataInvioRecensione}}': context.dataInvioRecensione || '',
+    '{{DataInvioCommenti}}': context.dataInvioCommenti || '',
     '{{DataInvioRecensioneConCommenti}}':
-      libro.dataInvioRecensioneConCommenti || '',
+      context.dataInvioRecensioneConCommenti || '',
     '{{DataPreparazionePubblicazione}}':
-      libro.dataPreparazionePubblicazione || ''
+      context.dataPreparazionePubblicazione || '',
+    '{{TemplateRecensioneUrl}}': context.reviewTemplateUrl || '',
+    '{{InformativaPrivacyUrl}}': context.privacyTemplateUrl || '',
+    '{{AmazonUrl}}': context.link || ''
   };
 
   let result = template;
@@ -85,7 +87,6 @@ const RecensioniApp = () => {
   });
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  // Modale di conferma dopo la scelta del recensore
   const [showPostConfirmModal, setShowPostConfirmModal] = useState(false);
   const [lastConfirmedBookId, setLastConfirmedBookId] = useState(null);
 
@@ -100,11 +101,17 @@ const RecensioniApp = () => {
       '- Invio recensione: {{DataInvioRecensione}}\n' +
       '- Invio commenti: {{DataInvioCommenti}}\n' +
       '- Pubblicazione: {{DataPubblicazione}}\n\n' +
+      'Documenti utili:\n' +
+      '- Template recensione: {{TemplateRecensioneUrl}}\n' +
+      '- Informativa privacy: {{InformativaPrivacyUrl}}\n\n' +
       'Grazie per la collaborazione!\nLa redazione',
     fixedRecipients: '',
     reviewTemplateUrl: '',
     privacyTemplateUrl: ''
   });
+
+  // Email di test
+  const [testEmailAddress, setTestEmailAddress] = useState('');
 
   const MESI = [
     'Gennaio',
@@ -121,19 +128,15 @@ const RecensioniApp = () => {
     'Dicembre'
   ];
 
-  // PALETTE COLORI (mixa i 3 RGB dati)
   const COLORS = {
-    accent: 'rgb(255, 97, 15)', // arancio
-    secondary: 'rgb(5, 191, 224)', // azzurro
-    primary: 'rgb(79, 23, 168)' // viola
+    accent: 'rgb(255, 97, 15)',
+    secondary: 'rgb(5, 191, 224)',
+    primary: 'rgb(79, 23, 168)'
   };
 
-  // Inizializza EmailJS una volta sola (se configurato)
+  // Inizializza EmailJS
   useEffect(() => {
-    if (
-      EMAILJS_PUBLIC_KEY &&
-      EMAILJS_PUBLIC_KEY !== 'INSERISCI_PUBLIC_KEY'
-    ) {
+    if (EMAILJS_PUBLIC_KEY) {
       emailjs.init(EMAILJS_PUBLIC_KEY);
     }
   }, []);
@@ -180,7 +183,7 @@ const RecensioniApp = () => {
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    setTimeout(() => setMessage({ text: '', type: '' }), 4000);
   };
 
   const handleLogin = () => {
@@ -248,7 +251,6 @@ const RecensioniApp = () => {
     setLibri((prev) => [...prev, nuovoLibro]);
   };
 
-  // VERSIONE CORRETTA, FUNZIONALE, CON SALVATAGGIO
   const aggiornaLibro = (id, campo, valore) => {
     setLibri((prevLibri) => {
       const nuoviLibri = prevLibri.map((libro) => {
@@ -273,7 +275,6 @@ const RecensioniApp = () => {
         return libroAggiornato;
       });
 
-      // salvo subito anche su localStorage
       storage.set(`libri_${anno}`, JSON.stringify(nuoviLibri));
       return nuoviLibri;
     });
@@ -392,16 +393,17 @@ const RecensioniApp = () => {
     showMessage('Recensione confermata!', 'success');
   };
 
+  const isEmailJsConfigured = () => {
+    return (
+      EMAILJS_SERVICE_ID &&
+      EMAILJS_TEMPLATE_ID &&
+      EMAILJS_PUBLIC_KEY
+    );
+  };
+
   // Invio email al recensore
   const handleSendEmail = async (libro) => {
-    if (
-      !EMAILJS_SERVICE_ID ||
-      EMAILJS_SERVICE_ID === 'INSERISCI_SERVICE_ID' ||
-      !EMAILJS_TEMPLATE_ID ||
-      EMAILJS_TEMPLATE_ID === 'INSERISCI_TEMPLATE_ID' ||
-      !EMAILJS_PUBLIC_KEY ||
-      EMAILJS_PUBLIC_KEY === 'INSERISCI_PUBLIC_KEY'
-    ) {
+    if (!isEmailJsConfigured()) {
       showMessage(
         'Configura prima EmailJS nel codice (SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)',
         'error'
@@ -417,34 +419,101 @@ const RecensioniApp = () => {
       return;
     }
 
-    const subject = applyTemplate(emailConfig.subjectTemplate, libro);
-    const body = applyTemplate(emailConfig.bodyTemplate, libro);
+    const context = {
+      ...libro,
+      reviewTemplateUrl: emailConfig.reviewTemplateUrl,
+      privacyTemplateUrl: emailConfig.privacyTemplateUrl
+    };
+
+    const subject = applyTemplate(emailConfig.subjectTemplate, context);
+    const body = applyTemplate(emailConfig.bodyTemplate, context);
 
     const templateParams = {
       to_email: libro.email,
       to_name: libro.nome || libro.nomeCognome || '',
       subject,
       message_html: body,
-      fixed_recipients: emailConfig.fixedRecipients,
-      review_template_url: emailConfig.reviewTemplateUrl,
-      privacy_template_url: emailConfig.privacyTemplateUrl,
-      cover_image: libro.copertina
+      fixed_recipients: emailConfig.fixedRecipients
     };
 
     try {
       await emailjs.send(
         EMAILJS_SERVICE_ID,
         EMAILJS_TEMPLATE_ID,
-        templateParams
+        templateParams,
+        EMAILJS_PUBLIC_KEY
       );
       showMessage('Email inviata al recensore', 'success');
     } catch (error) {
       console.error('Errore invio email', error);
-      showMessage("Errore durante l'invio della email", 'error');
+      showMessage(
+        `Errore durante l'invio della email: ${error?.text || error?.message || 'vedi console'}`,
+        'error'
+      );
     }
   };
 
-  // Invio email dalla modale post conferma (recensore)
+  // Invio email di test (admin)
+  const handleSendTestEmail = async () => {
+    if (!isEmailJsConfigured()) {
+      showMessage(
+        'Configura prima EmailJS nel codice (SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)',
+        'error'
+      );
+      return;
+    }
+
+    if (!testEmailAddress) {
+      showMessage('Inserisci una email di test', 'error');
+      return;
+    }
+
+    const context = {
+      nome: 'Mario',
+      cognome: 'Rossi',
+      nomeCognome: 'Mario Rossi',
+      titolo: 'Titolo di esempio',
+      autore: 'Autore di esempio',
+      mese: 'Gennaio',
+      dataPubblicazione: '31/01/2026',
+      dataInvioInfo: '01/01/2026',
+      dataInvioRecensione: '10/01/2026',
+      dataInvioCommenti: '15/01/2026',
+      dataInvioRecensioneConCommenti: '20/01/2026',
+      dataPreparazionePubblicazione: '25/01/2026',
+      link: 'https://www.pmi-sic.org',
+      reviewTemplateUrl: emailConfig.reviewTemplateUrl,
+      privacyTemplateUrl: emailConfig.privacyTemplateUrl
+    };
+
+    const subject = applyTemplate(emailConfig.subjectTemplate, context);
+    const body = applyTemplate(emailConfig.bodyTemplate, context);
+
+    const templateParams = {
+      to_email: testEmailAddress,
+      to_name: 'Test Recipient',
+      subject,
+      message_html: body,
+      fixed_recipients: emailConfig.fixedRecipients
+    };
+
+    try {
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        templateParams,
+        EMAILJS_PUBLIC_KEY
+      );
+      showMessage('Email di prova inviata', 'success');
+    } catch (error) {
+      console.error('Errore invio email di prova', error);
+      showMessage(
+        `Errore durante l'invio della email di prova: ${error?.text || error?.message || 'vedi console'}`,
+        'error'
+      );
+    }
+  };
+
   const handleSendEmailFromModal = () => {
     const libro = libri.find((l) => l.id === lastConfirmedBookId);
     if (!libro) {
@@ -455,13 +524,9 @@ const RecensioniApp = () => {
     setShowPostConfirmModal(false);
   };
 
-    const recensioniAttive = libri.filter((l) => l.nomeCognome).length;
+  const recensioniAttive = libri.filter((l) => l.nomeCognome).length;
   const isBloccato = recensioniAttive >= 12;
 
-  // Ordinamento libri per l'amministratore:
-  // 1) prima i libri assegnati (con nomeCognome)
-  // 2) ordinati per mese da Gennaio a Dicembre
-  // 3) poi i libri non scelti (ordinati per titolo)
   const libriOrdinatiPerAdmin = [...libri].sort((a, b) => {
     const aAssigned = !!a.nomeCognome;
     const bAssigned = !!b.nomeCognome;
@@ -482,15 +547,14 @@ const RecensioniApp = () => {
     return 0;
   });
 
-  // Privacy: per il recensore mostro SOLO i libri liberi
   const libriVisibili = isAdmin
     ? libriOrdinatiPerAdmin
     : libri.filter((l) => !l.nomeCognome);
 
-  // --- STILI COMUNI ---
+  // STILI
   const appWrapperStyle = {
     minHeight: '100vh',
-    padding: '24px',
+    padding: '16px 8px',
     backgroundImage: backgroundImage
       ? `url(${backgroundImage})`
       : `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
@@ -502,23 +566,27 @@ const RecensioniApp = () => {
   };
 
   const appInnerStyle = {
-    maxWidth: '1200px',
-    margin: '0 auto'
+    maxWidth: isAdmin ? '1200px' : '100%',
+    width: '100%',
+    margin: '0 auto',
+    padding: '0 12px'
   };
 
   const headerCardStyle = {
+    position: 'sticky',
+    top: 6,
+    zIndex: 30,
     background: 'rgba(255,255,255,0.96)',
     backdropFilter: 'blur(10px)',
     borderRadius: '20px',
-    boxShadow: '0 20px 40px rgba(15,23,42,0.10)',
-    padding: '24px',
-    marginBottom: '24px'
+    boxShadow: '0 12px 25px rgba(15,23,42,0.12)',
+    padding: '14px 20px',
+    marginBottom: '20px'
   };
 
-  // Griglia SEMPRE a 3 colonne, per quanti libri vuoi
   const cardGridStyle = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
     gap: '20px',
     marginBottom: '32px',
     alignItems: 'stretch'
@@ -574,17 +642,17 @@ const RecensioniApp = () => {
     color: '#4b5563'
   };
 
-  // --- SCHERMATA LOGIN ---
+  // SCHERMATA LOGIN
   if (showLogin) {
     return (
       <div
         style={{
           minHeight: '100vh',
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg,#e0f2fe,#e0e7ff)',
-          padding: '16px',
+          alignItems: 'stretch',
+          background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
+          padding: '0',
           fontFamily:
             'Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
         }}
@@ -592,11 +660,15 @@ const RecensioniApp = () => {
         <div
           style={{
             background: '#ffffff',
-            borderRadius: '20px',
-            boxShadow: '0 20px 40px rgba(15,23,42,0.12)',
-            maxWidth: '420px',
             width: '100%',
-            padding: '32px'
+            maxWidth: '480px',
+            minHeight: '100vh',
+            boxShadow: '0 0 40px rgba(15,23,42,0.25)',
+            padding: '32px 32px 40px 32px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            margin: '0 auto'
           }}
         >
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
@@ -607,13 +679,13 @@ const RecensioniApp = () => {
             />
             <h1
               style={{
-                fontSize: '24px',
+                fontSize: '26px',
                 fontWeight: '700',
                 color: '#111827',
                 margin: 0
               }}
             >
-              Sistema Recensioni
+              SIC Book Review
             </h1>
             <p style={{ color: '#6b7280', marginTop: '8px' }}>
               Seleziona il tuo ruolo
@@ -696,7 +768,7 @@ const RecensioniApp = () => {
     );
   }
 
-  // --- APP PRINCIPALE ---
+  // APP PRINCIPALE
   return (
     <div style={appWrapperStyle}>
       <div style={appInnerStyle}>
@@ -902,14 +974,14 @@ const RecensioniApp = () => {
         ) : (
           <div style={cardGridStyle}>
             {libriVisibili.map((libro) => (
-               <div
+              <div
                 key={libro.id}
                 style={{
                   ...bookCardStyle,
                   background: libro.nomeCognome
-                    ? '#dcfce7' // verde chiaro per libri assegnati
+                    ? '#dcfce7'
                     : !libro.nomeCognome && isBloccato && isAdmin
-                    ? '#f3f4f6' // grigio chiaro per libri non scelti quando 12/12
+                    ? '#f3f4f6'
                     : bookCardStyle.background
                 }}
               >
@@ -922,7 +994,7 @@ const RecensioniApp = () => {
                 )}
 
                 <div style={bookBodyStyle}>
-                {/* HEADER CARD */}
+                  {/* HEADER CARD */}
                   <div
                     style={{
                       display: 'flex',
@@ -984,11 +1056,7 @@ const RecensioniApp = () => {
                           type="text"
                           value={libro.titolo}
                           onChange={(e) =>
-                            aggiornaLibro(
-                              libro.id,
-                              'titolo',
-                              e.target.value
-                            )
+                            aggiornaLibro(libro.id, 'titolo', e.target.value)
                           }
                           style={{
                             ...inputStyle,
@@ -1004,11 +1072,7 @@ const RecensioniApp = () => {
                           type="text"
                           value={libro.autore}
                           onChange={(e) =>
-                            aggiornaLibro(
-                              libro.id,
-                              'autore',
-                              e.target.value
-                            )
+                            aggiornaLibro(libro.id, 'autore', e.target.value)
                           }
                           style={inputStyle}
                         />
@@ -1020,11 +1084,7 @@ const RecensioniApp = () => {
                           type="url"
                           value={libro.link}
                           onChange={(e) =>
-                            aggiornaLibro(
-                              libro.id,
-                              'link',
-                              e.target.value
-                            )
+                            aggiornaLibro(libro.id, 'link', e.target.value)
                           }
                           style={inputStyle}
                         />
@@ -1036,11 +1096,7 @@ const RecensioniApp = () => {
                           type="number"
                           value={libro.pagine}
                           onChange={(e) =>
-                            aggiornaLibro(
-                              libro.id,
-                              'pagine',
-                              e.target.value
-                            )
+                            aggiornaLibro(libro.id, 'pagine', e.target.value)
                           }
                           style={inputStyle}
                         />
@@ -1102,8 +1158,7 @@ const RecensioniApp = () => {
                                 color: '#374151'
                               }}
                             >
-                              <strong>Cognome:</strong>{' '}
-                              {libro.cognome || '-'}
+                              <strong>Cognome:</strong> {libro.cognome || '-'}
                             </div>
                             <div
                               style={{
@@ -1167,9 +1222,7 @@ const RecensioniApp = () => {
                                 </div>
                                 <div>
                                   <strong>Preparazione:</strong>{' '}
-                                  {
-                                    libro.dataPreparazionePubblicazione
-                                  }
+                                  {libro.dataPreparazionePubblicazione}
                                 </div>
                               </div>
                             )}
@@ -1251,7 +1304,7 @@ const RecensioniApp = () => {
                           Pagine: {libro.pagine}
                         </span>
                       )}
-                                            {libro.link && (
+                      {libro.link && (
                         <a
                           href={libro.link}
                           target="_blank"
@@ -1569,6 +1622,7 @@ const RecensioniApp = () => {
               <FileText size={20} color={COLORS.primary} />
               Configurazione email ai recensori
             </h2>
+
             <p
               style={{
                 fontSize: '12px',
@@ -1586,7 +1640,9 @@ const RecensioniApp = () => {
                   fontSize: '11px'
                 }}
               >
-                {'{{Nome}} {{Cognome}} {{NomeCompleto}} {{Titolo}} {{Autore}} {{Mese}} {{DataPubblicazione}} {{DataInvioInfo}} {{DataInvioRecensione}} {{DataInvioCommenti}} {{DataInvioRecensioneConCommenti}} {{DataPreparazionePubblicazione}}'}
+                {
+                  '{{Nome}} {{Cognome}} {{NomeCompleto}} {{Titolo}} {{Autore}} {{Mese}} {{DataPubblicazione}} {{DataInvioInfo}} {{DataInvioRecensione}} {{DataInvioCommenti}} {{DataInvioRecensioneConCommenti}} {{DataPreparazionePubblicazione}} {{TemplateRecensioneUrl}} {{InformativaPrivacyUrl}} {{AmazonUrl}}'
+                }
               </code>
             </p>
 
@@ -1597,7 +1653,10 @@ const RecensioniApp = () => {
                 gap: '16px'
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* COLONNA SINISTRA: CONFIG DI BASE */}
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+              >
                 <div>
                   <label style={labelStyle}>Oggetto email (template)</label>
                   <input
@@ -1627,12 +1686,14 @@ const RecensioniApp = () => {
                       })
                     }
                     style={inputStyle}
-                    placeholder="es: redazione@dominio.it, coordinatore@dominio.it"
+                    placeholder="es: comunicazione@pmi-sic.org"
                   />
                 </div>
 
                 <div>
-                  <label style={labelStyle}>URL Template Recensione (PDF)</label>
+                  <label style={labelStyle}>
+                    URL Template Recensione (Word/PDF)
+                  </label>
                   <input
                     type="text"
                     value={emailConfig.reviewTemplateUrl}
@@ -1643,13 +1704,13 @@ const RecensioniApp = () => {
                       })
                     }
                     style={inputStyle}
-                    placeholder="https://.../docs/template-recensione.pdf"
+                    placeholder="https://.../template-recensione.docx"
                   />
                 </div>
 
                 <div>
                   <label style={labelStyle}>
-                    URL Informativa Privacy (PDF)
+                    URL Informativa Privacy (Word/PDF)
                   </label>
                   <input
                     type="text"
@@ -1661,11 +1722,12 @@ const RecensioniApp = () => {
                       })
                     }
                     style={inputStyle}
-                    placeholder="https://.../docs/privacy.pdf"
+                    placeholder="https://.../informativa-privacy.docx"
                   />
                 </div>
               </div>
 
+              {/* COLONNA DESTRA: CORPO EMAIL */}
               <div>
                 <label style={labelStyle}>Corpo email (template)</label>
                 <textarea
@@ -1698,6 +1760,74 @@ const RecensioniApp = () => {
               Ricorda di cliccare su <strong>Salva</strong> in alto per
               memorizzare anche queste impostazioni nel browser.
             </p>
+
+            {/* BLOCCO EMAIL DI PROVA */}
+            <div
+              style={{
+                marginTop: '12px',
+                paddingTop: '10px',
+                borderTop: '1px solid #e5e7eb',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#111827'
+                }}
+              >
+                Invia email di prova (senza usare un libro reale)
+              </span>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  alignItems: 'center'
+                }}
+              >
+                <input
+                  type="email"
+                  placeholder="email per il test (es. la tua)"
+                  value={testEmailAddress}
+                  onChange={(e) => setTestEmailAddress(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    flex: 1,
+                    minWidth: '200px'
+                  }}
+                />
+                <button
+                  onClick={handleSendTestEmail}
+                  style={{
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: COLORS.secondary,
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Invia email di prova
+                </button>
+              </div>
+              <p
+                style={{
+                  fontSize: '11px',
+                  color: '#6b7280',
+                  margin: 0
+                }}
+              >
+                Verrà inviata una email di esempio utilizzando il template e le
+                URL impostate sopra, con dati fittizi (Mario Rossi, date di
+                esempio).
+              </p>
+            </div>
           </div>
         )}
       </div>
