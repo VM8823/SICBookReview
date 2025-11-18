@@ -13,13 +13,15 @@ import {
   FileText
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import { supabase } from './supabaseClient';
 
 // === CONFIGURAZIONE EMAILJS ===
+// ⚠️ Metti qui i TUOI valori reali presi da EmailJS
 const EMAILJS_SERVICE_ID = 'service_u4jt49x';
 const EMAILJS_TEMPLATE_ID = 'template_alvdimz';
 const EMAILJS_PUBLIC_KEY = '7XpH6J5xigFu_9mum';
 
-// === STORAGE LOCALE (localStorage) ===
+// === STORAGE LOCALE (solo per sfondo e email_config) ===
 const storage = {
   async get(key) {
     try {
@@ -62,7 +64,8 @@ const applyTemplate = (template, context) => {
       context.dataPreparazionePubblicazione || '',
     '{{TemplateRecensioneUrl}}': context.reviewTemplateUrl || '',
     '{{InformativaPrivacyUrl}}': context.privacyTemplateUrl || '',
-    '{{AmazonUrl}}': context.link || ''
+    '{{AmazonUrl}}': context.link || '',
+    '{{CoverImage}}': context.copertina || ''
   };
 
   let result = template;
@@ -71,6 +74,82 @@ const applyTemplate = (template, context) => {
   });
   return result;
 };
+
+const MESI = [
+  'Gennaio',
+  'Febbraio',
+  'Marzo',
+  'Aprile',
+  'Maggio',
+  'Giugno',
+  'Luglio',
+  'Agosto',
+  'Settembre',
+  'Ottobre',
+  'Novembre',
+  'Dicembre'
+];
+
+// PALETTE COLORI
+const COLORS = {
+  accent: 'rgb(255, 97, 15)',
+  secondary: 'rgb(5, 191, 224)',
+  primary: 'rgb(79, 23, 168)'
+};
+
+// Un libro è "assegnato" solo se ha mese + nome/cognome + email
+const isBookAssigned = (book) =>
+  !!(book.mese && book.nomeCognome && book.email);
+
+// Helper mapping DB -> React
+const mapBookFromDb = (row) => ({
+  id: row.id,
+  anno: row.anno,
+  titolo: row.titolo || '',
+  autore: row.autore || '',
+  link: row.link || '',
+  pagine: row.pagine ?? '',
+  mese: row.mese || '',
+  nomeCognome: row.nome_cognome || '',
+  nome: row.nome || '',
+  cognome: row.cognome || '',
+  email: row.email || '',
+  copertina: row.copertina || '',
+  dataPubblicazione: row.data_pubblicazione || '',
+  dataInvioInfo: row.data_invio_info || '',
+  dataInvioRecensione: row.data_invio_recensione || '',
+  dataInvioCommenti: row.data_invio_commenti || '',
+  dataInvioRecensioneConCommenti:
+    row.data_invio_recensione_con_commenti || '',
+  dataPreparazionePubblicazione:
+    row.data_preparazione_pubblicazione || ''
+});
+
+// Helper mapping React -> DB
+const mapBookToDb = (libro, annoCorrente) => ({
+  anno: libro.anno ?? annoCorrente,
+  titolo: libro.titolo || '',
+  autore: libro.autore || '',
+  link: libro.link || '',
+  pagine:
+    libro.pagine === '' || libro.pagine === null
+      ? null
+      : Number(libro.pagine),
+  mese: libro.mese || '',
+  nome_cognome: libro.nomeCognome || '',
+  nome: libro.nome || '',
+  cognome: libro.cognome || '',
+  email: libro.email || '',
+  copertina: libro.copertina || '',
+  data_pubblicazione: libro.dataPubblicazione || '',
+  data_invio_info: libro.dataInvioInfo || '',
+  data_invio_recensione: libro.dataInvioRecensione || '',
+  data_invio_commenti: libro.dataInvioCommenti || '',
+  data_invio_recensione_con_commenti:
+    libro.dataInvioRecensioneConCommenti || '',
+  data_preparazione_pubblicazione:
+    libro.dataPreparazionePubblicazione || ''
+});
 
 const RecensioniApp = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -87,73 +166,138 @@ const RecensioniApp = () => {
   });
   const [message, setMessage] = useState({ text: '', type: '' });
 
+  // Modale post conferma recensore
   const [showPostConfirmModal, setShowPostConfirmModal] = useState(false);
   const [lastConfirmedBookId, setLastConfirmedBookId] = useState(null);
 
-  // Configurazione template email
   const [emailConfig, setEmailConfig] = useState({
     subjectTemplate: 'Recensione del mese di {{Mese}} – {{Titolo}}',
     bodyTemplate:
-      'Ciao {{Nome}},\n\n' +
-      'ti confermiamo la recensione del libro "{{Titolo}}" per il mese di {{Mese}}.\n\n' +
-      'Ecco le principali scadenze:\n' +
-      '- Invio info redazione: {{DataInvioInfo}}\n' +
-      '- Invio recensione: {{DataInvioRecensione}}\n' +
-      '- Invio commenti: {{DataInvioCommenti}}\n' +
-      '- Pubblicazione: {{DataPubblicazione}}\n\n' +
-      'Documenti utili:\n' +
-      '- Template recensione: {{TemplateRecensioneUrl}}\n' +
-      '- Informativa privacy: {{InformativaPrivacyUrl}}\n\n' +
-      'Grazie per la collaborazione!\nLa redazione',
+      '<p>Ciao {{Nome}},</p>' +
+      '<p>Grazie per l’interesse dimostrato nell’iniziativa. Con piacere ti confermo l’assegnazione della recensione del libro "{{Titolo}}" per il mese di {{Mese}}.</p>' +
+      '<p>Al fine di rispettare le tempistiche per la pubblicazione, ricapitolo i prossimi passi e le relative date:</p>' +
+      '<table style="border-collapse: collapse; width: 100%;" border="1">' +
+      '<thead><tr>' +
+      '<th>ATTIVITÀ</th><th>SCADENZA</th><th>RESPONSABILE</th><th>TO</th><th>CC</th>' +
+      '</tr></thead><tbody>' +
+      '<tr><td>Invio info sulla redazione della recensione</td><td>{{DataInvioInfo}}</td><td>V. Mosca</td><td>{{Nome}} {{Cognome}},<br/>Comitato Comunicazione</td><td>F. Spadera</td></tr>' +
+      '<tr><td>Invio recensione, con liberatoria firmata</td><td>{{DataInvioRecensione}}</td><td>{{Nome}} {{Cognome}}</td><td>V. Mosca,<br/>Comitato Comunicazione</td><td>F. Spadera</td></tr>' +
+      '<tr><td>Invio commenti sulla recensione (eventuale)</td><td>{{DataInvioCommenti}}</td><td>V. Mosca</td><td>{{Nome}} {{Cognome}}</td><td></td></tr>' +
+      '<tr><td>Invio recensione con commenti (eventuale)</td><td>{{DataInvioRecensioneConCommenti}}</td><td>{{Nome}} {{Cognome}}</td><td>V. Mosca,<br/>Comitato Comunicazione</td><td>F. Spadera</td></tr>' +
+      '<tr><td>Preparazione pubblicazione sui vari canali del SIC</td><td>{{DataPreparazionePubblicazione}}</td><td>Comitato Comunicazione</td><td>N/A</td><td>N/A</td></tr>' +
+      '<tr><td>Pubblicazione</td><td>{{DataPubblicazione}}</td><td>Comitato Comunicazione</td><td>N/A</td><td>N/A</td></tr>' +
+      '</tbody></table>' +
+      '<p>Allego, inoltre, il template per la recensione (<a href="{{TemplateRecensioneUrl}}" target="_blank" rel="noopener noreferrer">TEMPLATE SIC Book Review</a>), la cover del libro da te scelto (che invierò io) e la liberatoria per l’utilizzo dei dati personali (<a href="{{InformativaPrivacyUrl}}" target="_blank" rel="noopener noreferrer">PMI-SIC Speaker - Liberatoria e Informativa dati personali</a>).</p>' +
+      '<p>L’indirizzo del Comitato Comunicazione è: <a href="mailto:comunicazione@pmi-sic.org">comunicazione@pmi-sic.org</a></p>' +
+      '<p>Per qualsiasi dubbio, non esitare a contattarmi.</p>' +
+      '<p>Porgendoti i miei più cordiali saluti, approfitto per ringraziarti nuovamente per l’interesse dimostrato.</p>' +
+      '<p>Cordiali saluti,<br/>Vincenzo Mosca – Socio e Volontario del PMI-SIC<br/>Responsabile del Comitato Editoriale<br/>+39 3339258320 – <a href="mailto:enzo.mosca@pmi-sic.org">enzo.mosca@pmi-sic.org</a></p>',
     fixedRecipients: '',
     reviewTemplateUrl: '',
     privacyTemplateUrl: ''
   });
 
-  // Email di test
   const [testEmailAddress, setTestEmailAddress] = useState('');
 
-  const MESI = [
-    'Gennaio',
-    'Febbraio',
-    'Marzo',
-    'Aprile',
-    'Maggio',
-    'Giugno',
-    'Luglio',
-    'Agosto',
-    'Settembre',
-    'Ottobre',
-    'Novembre',
-    'Dicembre'
-  ];
-
-  const COLORS = {
-    accent: 'rgb(255, 97, 15)',
-    secondary: 'rgb(5, 191, 224)',
-    primary: 'rgb(79, 23, 168)'
-  };
-
-  // Inizializza EmailJS
+  // EmailJS init
   useEffect(() => {
     if (EMAILJS_PUBLIC_KEY) {
       emailjs.init(EMAILJS_PUBLIC_KEY);
     }
   }, []);
 
+  // Caricamento iniziale libri + config da localStorage
   useEffect(() => {
     loadData();
   }, [anno]);
 
+  const showMessage = (text, type) => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+  };
+
+  const handleLogin = () => {
+    if (adminPassword === 'admin2026') {
+      setIsAdmin(true);
+      setShowLogin(false);
+    } else {
+      showMessage('Password errata', 'error');
+    }
+  };
+
+  const calcolaDate = (mese) => {
+  const meseIndex = MESI.indexOf(mese);
+  if (meseIndex === -1) return {};
+
+  // 1) Ultima domenica del mese (data di pubblicazione)
+  const getUltimaDomenica = (anno, mese) => {
+    // ultimo giorno del mese
+    const d = new Date(anno, mese + 1, 0);
+    // risalgo finché non trovo una domenica (0)
+    while (d.getDay() !== 0) {
+      d.setDate(d.getDate() - 1);
+    }
+    return d; // ritorno un oggetto Date
+  };
+
+  // 2) Primo lunedì del mese (come prima, per invio info)
+  const getPrimoLunedi = (anno, mese) => {
+    const d = new Date(anno, mese, 1);
+    // 1 = lunedì
+    while (d.getDay() !== 1) {
+      d.setDate(d.getDate() + 1);
+    }
+    return d.toLocaleDateString('it-IT');
+  };
+
+  // 3) Helper per date relative
+  const addDays = (baseDate, offset) => {
+    const d = new Date(baseDate.getTime());
+    d.setDate(d.getDate() + offset);
+    return d.toLocaleDateString('it-IT');
+  };
+
+  // Calcolo effettivo
+  const ultimaDomenica = getUltimaDomenica(anno, meseIndex);
+
+  const dataPubblicazione = ultimaDomenica.toLocaleDateString('it-IT');
+  const dataInvioInfo = getPrimoLunedi(anno, meseIndex);
+
+  // tutti nella stessa settimana che termina con la domenica di pubblicazione
+  const dataInvioRecensione = addDays(ultimaDomenica, -4);            // mercoledì
+  const dataInvioCommenti = addDays(ultimaDomenica, -3);              // giovedì
+  const dataInvioRecensioneConCommenti = addDays(ultimaDomenica, -2); // venerdì
+  const dataPreparazionePubblicazione = addDays(ultimaDomenica, -1);  // sabato
+
+  return {
+    dataPubblicazione,
+    dataInvioInfo,
+    dataInvioRecensione,
+    dataInvioCommenti,
+    dataInvioRecensioneConCommenti,
+    dataPreparazionePubblicazione
+  };
+};
+
   const loadData = async () => {
     try {
-      const result = await storage.get(`libri_${anno}`);
-      if (result) {
-        setLibri(JSON.parse(result.value));
-      } else {
+      // Libri da Supabase
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .eq('anno', anno)
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.error('Errore caricamento libri da Supabase', error);
+        showMessage('Errore nel caricamento dei libri', 'error');
         setLibri([]);
+      } else {
+        const mapped = (data || []).map(mapBookFromDb);
+        setLibri(mapped);
       }
 
+      // Sfondo e config email da localStorage
       const bgResult = await storage.get('background_image');
       if (bgResult) {
         setBackgroundImage(bgResult.value);
@@ -167,149 +311,161 @@ const RecensioniApp = () => {
         }));
       }
     } catch (error) {
-      console.log('Nessun dato salvato per questo anno');
+      console.error('Errore generale in loadData', error);
+      showMessage('Errore nel caricamento dei dati', 'error');
     }
   };
 
   const saveData = async () => {
     try {
-      await storage.set(`libri_${anno}`, JSON.stringify(libri));
       await storage.set('email_config', JSON.stringify(emailConfig));
-      showMessage('Dati salvati con successo!', 'success');
+      showMessage(
+        'Config email e sfondo salvati (libri già in Supabase)',
+        'success'
+      );
     } catch (error) {
       showMessage('Errore nel salvataggio', 'error');
     }
   };
 
-  const showMessage = (text, type) => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 4000);
-  };
+  const aggiungiLibro = async () => {
+    try {
+      const nuovoLibro = {
+        id: undefined,
+        anno,
+        titolo: '',
+        autore: '',
+        link: '',
+        pagine: '',
+        mese: '',
+        nomeCognome: '',
+        nome: '',
+        cognome: '',
+        email: '',
+        copertina: '',
+        ...calcolaDate('')
+      };
 
-  const handleLogin = () => {
-    if (adminPassword === 'admin2026') {
-      setIsAdmin(true);
-      setShowLogin(false);
-    } else {
-      showMessage('Password errata', 'error');
+      const { data, error } = await supabase
+        .from('books')
+        .insert([mapBookToDb(nuovoLibro, anno)])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Errore inserimento libro', error);
+        showMessage('Errore durante la creazione del libro', 'error');
+        return;
+      }
+
+      const libroInserito = mapBookFromDb(data);
+      setLibri((prev) => [...prev, libroInserito]);
+      showMessage('Libro aggiunto', 'success');
+    } catch (err) {
+      console.error('Errore generico inserimento libro', err);
+      showMessage('Errore durante la creazione del libro', 'error');
     }
   };
 
-  const calcolaDate = (mese) => {
-    const meseIndex = MESI.indexOf(mese);
-    if (meseIndex === -1) return {};
+  const aggiornaLibro = async (id, campo, valore) => {
+    const libroEsistente = libri.find((l) => l.id === id);
+    if (!libroEsistente) return;
 
-    const ultimaDomenica = (anno, mese) => {
-      const date = new Date(anno, mese + 1, 0);
-      while (date.getDay() !== 0) {
-        date.setDate(date.getDate() - 1);
+    let libroAggiornato = { ...libroEsistente, [campo]: valore };
+
+    if (campo === 'mese') {
+      const date = calcolaDate(valore);
+      libroAggiornato = { ...libroAggiornato, ...date };
+    }
+
+    if (campo === 'nomeCognome') {
+      const parti = valore.trim().split(' ');
+      libroAggiornato = {
+        ...libroAggiornato,
+        nomeCognome: valore,
+        nome: parti[0] || '',
+        cognome: parti.slice(1).join(' ') || ''
+      };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('books')
+        .update(mapBookToDb(libroAggiornato, anno))
+        .eq('id', id);
+
+      if (error) {
+        console.error('Errore aggiornamento libro', error);
+        showMessage('Errore durante il salvataggio del libro', 'error');
+        return;
       }
-      return date.toLocaleDateString('it-IT');
-    };
 
-    const primoLunedi = (anno, mese) => {
-      const date = new Date(anno, mese, 1);
-      while (date.getDay() !== 1) {
-        date.setDate(date.getDate() + 1);
-      }
-      return date.toLocaleDateString('it-IT');
-    };
-
-    const ultimoGiorno = (anno, mese, giorno) => {
-      const date = new Date(anno, mese + 1, 0);
-      while (date.getDay() !== giorno) {
-        date.setDate(date.getDate() - 1);
-      }
-      return date.toLocaleDateString('it-IT');
-    };
-
-    return {
-      dataPubblicazione: ultimaDomenica(anno, meseIndex),
-      dataInvioInfo: primoLunedi(anno, meseIndex),
-      dataInvioRecensione: ultimoGiorno(anno, meseIndex, 3),
-      dataInvioCommenti: ultimoGiorno(anno, meseIndex, 4),
-      dataInvioRecensioneConCommenti: ultimoGiorno(anno, meseIndex, 5),
-      dataPreparazionePubblicazione: ultimoGiorno(anno, meseIndex, 6)
-    };
+      setLibri((prevLibri) =>
+        prevLibri.map((l) => (l.id === id ? libroAggiornato : l))
+      );
+    } catch (err) {
+      console.error('Errore generico aggiornamento libro', err);
+      showMessage('Errore durante il salvataggio del libro', 'error');
+    }
   };
 
-  const aggiungiLibro = () => {
-    const nuovoLibro = {
-      id: libri.length + 1,
-      titolo: '',
-      autore: '',
-      link: '',
-      pagine: '',
-      mese: '',
+  const rimuoviLibro = async (id) => {
+    try {
+      const { error } = await supabase.from('books').delete().eq('id', id);
+
+      if (error) {
+        console.error('Errore cancellazione libro', error);
+        showMessage('Errore durante la cancellazione del libro', 'error');
+        return;
+      }
+
+      setLibri((prev) => prev.filter((libro) => libro.id !== id));
+      showMessage('Libro eliminato', 'success');
+    } catch (err) {
+      console.error('Errore generico cancellazione libro', err);
+      showMessage('Errore durante la cancellazione del libro', 'error');
+    }
+  };
+
+  const clearReviewer = async (id) => {
+    const libroEsistente = libri.find((l) => l.id === id);
+    if (!libroEsistente) return;
+
+    const libroPulito = {
+      ...libroEsistente,
       nomeCognome: '',
       nome: '',
       cognome: '',
       email: '',
-      copertina: '',
-      ...calcolaDate('')
+      mese: '',
+      dataPubblicazione: '',
+      dataInvioInfo: '',
+      dataInvioRecensione: '',
+      dataInvioCommenti: '',
+      dataInvioRecensioneConCommenti: '',
+      dataPreparazionePubblicazione: ''
     };
-    setLibri((prev) => [...prev, nuovoLibro]);
-  };
 
-  const aggiornaLibro = (id, campo, valore) => {
-    setLibri((prevLibri) => {
-      const nuoviLibri = prevLibri.map((libro) => {
-        if (libro.id !== id) return libro;
+    try {
+      const { error } = await supabase
+        .from('books')
+        .update(mapBookToDb(libroPulito, anno))
+        .eq('id', id);
 
-        let libroAggiornato = { ...libro, [campo]: valore };
+      if (error) {
+        console.error('Errore clear reviewer', error);
+        showMessage('Errore durante la liberazione del libro', 'error');
+        return;
+      }
 
-        if (campo === 'mese') {
-          const date = calcolaDate(valore);
-          libroAggiornato = { ...libroAggiornato, ...date };
-        }
-
-        if (campo === 'nomeCognome') {
-          const parti = valore.trim().split(' ');
-          libroAggiornato = {
-            ...libroAggiornato,
-            nome: parti[0] || '',
-            cognome: parti.slice(1).join(' ') || ''
-          };
-        }
-
-        return libroAggiornato;
-      });
-
-      storage.set(`libri_${anno}`, JSON.stringify(nuoviLibri));
-      return nuoviLibri;
-    });
-  };
-
-  const rimuoviLibro = (id) => {
-    setLibri((prev) => prev.filter((libro) => libro.id !== id));
-  };
-
-  // Svuota i dati del recensore per un libro (admin)
-  const clearReviewer = (id) => {
-    setLibri((prevLibri) => {
-      const nuoviLibri = prevLibri.map((libro) => {
-        if (libro.id === id) {
-          return {
-            ...libro,
-            nomeCognome: '',
-            nome: '',
-            cognome: '',
-            email: '',
-            mese: '',
-            dataPubblicazione: '',
-            dataInvioInfo: '',
-            dataInvioRecensione: '',
-            dataInvioCommenti: '',
-            dataInvioRecensioneConCommenti: '',
-            dataPreparazionePubblicazione: ''
-          };
-        }
-        return libro;
-      });
-      storage.set(`libri_${anno}`, JSON.stringify(nuoviLibri));
-      return nuoviLibri;
-    });
-    showMessage('Recensione svuotata per questo libro', 'success');
+      setLibri((prevLibri) =>
+        prevLibri.map((l) => (l.id === id ? libroPulito : l))
+      );
+      showMessage('Recensione svuotata per questo libro', 'success');
+    } catch (err) {
+      console.error('Errore generico clear reviewer', err);
+      showMessage('Errore durante la liberazione del libro', 'error');
+    }
   };
 
   const handleImageUpload = async (e, libroId = null) => {
@@ -319,7 +475,7 @@ const RecensioniApp = () => {
       reader.onload = async (event) => {
         const base64 = event.target.result;
         if (libroId) {
-          aggiornaLibro(libroId, 'copertina', base64);
+          await aggiornaLibro(libroId, 'copertina', base64);
         } else {
           setBackgroundImage(base64);
           try {
@@ -334,76 +490,113 @@ const RecensioniApp = () => {
   };
 
   const selezionaLibro = (libro) => {
-    if (libro.nomeCognome) {
+    if (isBookAssigned(libro)) {
       showMessage('Questo libro è già stato selezionato', 'error');
       return;
     }
     setSelectedBook(libro);
     setRecensoreData({
-      mese: libro.mese || '',
+      mese: '',
       nomeCognome: '',
       email: ''
     });
   };
 
-  const confermaRecensione = () => {
-    if (
-      !recensoreData.mese ||
-      !recensoreData.nomeCognome ||
-      !recensoreData.email
-    ) {
-      showMessage('Compila tutti i campi', 'error');
+  const confermaRecensione = async () => {
+  if (
+    !recensoreData.mese ||
+    !recensoreData.nomeCognome ||
+    !recensoreData.email
+  ) {
+    showMessage('Compila tutti i campi', 'error');
+    return;
+  }
+
+  // Libri già assegnati (mese + nome + email)
+  const recensioniAttiveArray = libri.filter(isBookAssigned);
+
+  // Controllo: mese già occupato?
+  if (
+    recensioniAttiveArray.some(
+      (l) =>
+        l.mese === recensoreData.mese &&
+        l.id !== (selectedBook?.id ?? -1)
+    )
+  ) {
+    showMessage('Questo mese è già stato scelto', 'error');
+    return;
+  }
+
+  // Controllo: stessa email ha già una recensione?
+  if (
+    recensioniAttiveArray.some(
+      (l) =>
+        l.email === recensoreData.email &&
+        l.id !== (selectedBook?.id ?? -1)
+    )
+  ) {
+    showMessage('Hai già una recensione assegnata', 'error');
+    return;
+  }
+
+  // Recupero il libro attuale dallo stato
+  const libroOriginale = libri.find((l) => l.id === selectedBook.id);
+  if (!libroOriginale) {
+    showMessage('Errore interno: libro non trovato', 'error');
+    return;
+  }
+
+  // Calcolo delle date in base al mese scelto
+  const date = calcolaDate(recensoreData.mese);
+
+  // Split nome/cognome
+  const partiNome = recensoreData.nomeCognome.trim().split(' ');
+  const nome = partiNome[0] || '';
+  const cognome = partiNome.slice(1).join(' ') || '';
+
+  // Versione completa del libro aggiornato
+  const libroAggiornato = {
+    ...libroOriginale,
+    mese: recensoreData.mese,
+    nomeCognome: recensoreData.nomeCognome,
+    nome,
+    cognome,
+    email: recensoreData.email,
+    ...date
+  };
+
+  try {
+    // 🔁 Singolo update atomico su Supabase
+    const { error } = await supabase
+      .from('books')
+      .update(mapBookToDb(libroAggiornato, anno))
+      .eq('id', libroAggiornato.id);
+
+    if (error) {
+      console.error('Errore aggiornamento libro (confermaRecensione)', error);
+      showMessage('Errore durante il salvataggio della prenotazione', 'error');
       return;
     }
 
-    const recensioniAttive = libri.filter((l) => l.nomeCognome);
-
-    if (
-      recensioniAttive.some(
-        (l) => l.mese === recensoreData.mese && l.id !== selectedBook.id
-      )
-    ) {
-      showMessage('Questo mese è già stato scelto', 'error');
-      return;
-    }
-
-    if (
-      recensioniAttive.some(
-        (l) => l.email === recensoreData.email && l.id !== selectedBook.id
-      )
-    ) {
-      showMessage('Hai già una recensione assegnata', 'error');
-      return;
-    }
-
-    const confirmedId = selectedBook.id;
-
-    aggiornaLibro(selectedBook.id, 'mese', recensoreData.mese);
-    aggiornaLibro(
-      selectedBook.id,
-      'nomeCognome',
-      recensoreData.nomeCognome
+    // ✅ Aggiorno lo stato con il libro aggiornato
+    setLibri((prevLibri) =>
+      prevLibri.map((l) => (l.id === libroAggiornato.id ? libroAggiornato : l))
     );
-    aggiornaLibro(selectedBook.id, 'email', recensoreData.email);
 
+    // Pulizia e modale di conferma
     setSelectedBook(null);
     setRecensoreData({ mese: '', nomeCognome: '', email: '' });
-    setLastConfirmedBookId(confirmedId);
+    setLastConfirmedBookId(libroAggiornato.id);
     setShowPostConfirmModal(true);
     showMessage('Recensione confermata!', 'success');
-  };
+  } catch (err) {
+    console.error('Errore generico confermaRecensione', err);
+    showMessage('Errore durante il salvataggio della prenotazione', 'error');
+  }
+};
 
-  const isEmailJsConfigured = () => {
-    return (
-      EMAILJS_SERVICE_ID &&
-      EMAILJS_TEMPLATE_ID &&
-      EMAILJS_PUBLIC_KEY
-    );
-  };
-
-  // Invio email al recensore
   const handleSendEmail = async (libro) => {
-    if (!isEmailJsConfigured()) {
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
       showMessage(
         'Configura prima EmailJS nel codice (SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)',
         'error'
@@ -419,8 +612,12 @@ const RecensioniApp = () => {
       return;
     }
 
+    // Ricomputo date in base al mese corrente del libro
+    const dates = calcolaDate(libro.mese || '');
+
     const context = {
       ...libro,
+      ...dates,
       reviewTemplateUrl: emailConfig.reviewTemplateUrl,
       privacyTemplateUrl: emailConfig.privacyTemplateUrl
     };
@@ -433,7 +630,8 @@ const RecensioniApp = () => {
       to_name: libro.nome || libro.nomeCognome || '',
       subject,
       message_html: body,
-      fixed_recipients: emailConfig.fixedRecipients
+      fixed_recipients: emailConfig.fixedRecipients, 
+      CoverImage: libro.copertina || ''
     };
 
     try {
@@ -446,16 +644,12 @@ const RecensioniApp = () => {
       showMessage('Email inviata al recensore', 'success');
     } catch (error) {
       console.error('Errore invio email', error);
-      showMessage(
-        `Errore durante l'invio della email: ${error?.text || error?.message || 'vedi console'}`,
-        'error'
-      );
+      showMessage("Errore durante l'invio della email", 'error');
     }
   };
 
-  // Invio email di test (admin)
   const handleSendTestEmail = async () => {
-    if (!isEmailJsConfigured()) {
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
       showMessage(
         'Configura prima EmailJS nel codice (SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)',
         'error'
@@ -507,10 +701,7 @@ const RecensioniApp = () => {
       showMessage('Email di prova inviata', 'success');
     } catch (error) {
       console.error('Errore invio email di prova', error);
-      showMessage(
-        `Errore durante l'invio della email di prova: ${error?.text || error?.message || 'vedi console'}`,
-        'error'
-      );
+      showMessage("Errore durante l'invio della email di prova", 'error');
     }
   };
 
@@ -524,12 +715,14 @@ const RecensioniApp = () => {
     setShowPostConfirmModal(false);
   };
 
-  const recensioniAttive = libri.filter((l) => l.nomeCognome).length;
+  // ✅ adesso il contatore usa la logica "libro assegnato"
+  const recensioniAttive = libri.filter(isBookAssigned).length;
   const isBloccato = recensioniAttive >= 12;
 
+  // Ordinamento libri per admin
   const libriOrdinatiPerAdmin = [...libri].sort((a, b) => {
-    const aAssigned = !!a.nomeCognome;
-    const bAssigned = !!b.nomeCognome;
+    const aAssigned = isBookAssigned(a);
+    const bAssigned = isBookAssigned(b);
 
     if (aAssigned && !bAssigned) return -1;
     if (!aAssigned && bAssigned) return 1;
@@ -547,11 +740,12 @@ const RecensioniApp = () => {
     return 0;
   });
 
+  // Privacy: il recensore vede solo libri NON assegnati
   const libriVisibili = isAdmin
     ? libriOrdinatiPerAdmin
-    : libri.filter((l) => !l.nomeCognome);
+    : libri.filter((l) => !isBookAssigned(l));
 
-  // STILI
+  // --- STILI ---
   const appWrapperStyle = {
     minHeight: '100vh',
     padding: '16px 8px',
@@ -642,7 +836,7 @@ const RecensioniApp = () => {
     color: '#4b5563'
   };
 
-  // SCHERMATA LOGIN
+  // --- SCHERMATA LOGIN ---
   if (showLogin) {
     return (
       <div
@@ -768,11 +962,11 @@ const RecensioniApp = () => {
     );
   }
 
-  // APP PRINCIPALE
+  // --- APP PRINCIPALE ---
   return (
     <div style={appWrapperStyle}>
       <div style={appInnerStyle}>
-        {/* HEADER */}
+        {/* HEADER STICKY */}
         <div style={headerCardStyle}>
           <div
             style={{
@@ -978,9 +1172,9 @@ const RecensioniApp = () => {
                 key={libro.id}
                 style={{
                   ...bookCardStyle,
-                  background: libro.nomeCognome
+                  background: isBookAssigned(libro)
                     ? '#dcfce7'
-                    : !libro.nomeCognome && isBloccato && isAdmin
+                    : !isBookAssigned(libro) && isBloccato && isAdmin
                     ? '#f3f4f6'
                     : bookCardStyle.background
                 }}
@@ -1014,7 +1208,7 @@ const RecensioniApp = () => {
                     </span>
                     {isAdmin && (
                       <div style={{ display: 'flex', gap: 6 }}>
-                        {libro.nomeCognome && (
+                        {isBookAssigned(libro) && (
                           <button
                             onClick={() => clearReviewer(libro.id)}
                             style={{
@@ -1047,7 +1241,7 @@ const RecensioniApp = () => {
                     )}
                   </div>
 
-                  {/* CONTENUTO PRINCIPALE */}
+                  {/* CONTENUTO CARD */}
                   {isAdmin ? (
                     <>
                       <div>
@@ -1056,7 +1250,11 @@ const RecensioniApp = () => {
                           type="text"
                           value={libro.titolo}
                           onChange={(e) =>
-                            aggiornaLibro(libro.id, 'titolo', e.target.value)
+                            aggiornaLibro(
+                              libro.id,
+                              'titolo',
+                              e.target.value
+                            )
                           }
                           style={{
                             ...inputStyle,
@@ -1072,7 +1270,11 @@ const RecensioniApp = () => {
                           type="text"
                           value={libro.autore}
                           onChange={(e) =>
-                            aggiornaLibro(libro.id, 'autore', e.target.value)
+                            aggiornaLibro(
+                              libro.id,
+                              'autore',
+                              e.target.value
+                            )
                           }
                           style={inputStyle}
                         />
@@ -1084,7 +1286,11 @@ const RecensioniApp = () => {
                           type="url"
                           value={libro.link}
                           onChange={(e) =>
-                            aggiornaLibro(libro.id, 'link', e.target.value)
+                            aggiornaLibro(
+                              libro.id,
+                              'link',
+                              e.target.value
+                            )
                           }
                           style={inputStyle}
                         />
@@ -1096,7 +1302,11 @@ const RecensioniApp = () => {
                           type="number"
                           value={libro.pagine}
                           onChange={(e) =>
-                            aggiornaLibro(libro.id, 'pagine', e.target.value)
+                            aggiornaLibro(
+                              libro.id,
+                              'pagine',
+                              e.target.value
+                            )
                           }
                           style={inputStyle}
                         />
@@ -1120,7 +1330,6 @@ const RecensioniApp = () => {
                         }}
                       />
 
-                      {/* DETTAGLI RECENSORE PER ADMIN */}
                       <div>
                         <div
                           style={{
@@ -1142,7 +1351,7 @@ const RecensioniApp = () => {
                           </span>
                         </div>
 
-                        {libro.nomeCognome ? (
+                        {isBookAssigned(libro) ? (
                           <>
                             <div
                               style={{
@@ -1158,7 +1367,8 @@ const RecensioniApp = () => {
                                 color: '#374151'
                               }}
                             >
-                              <strong>Cognome:</strong> {libro.cognome || '-'}
+                              <strong>Cognome:</strong>{' '}
+                              {libro.cognome || '-'}
                             </div>
                             <div
                               style={{
@@ -1218,11 +1428,14 @@ const RecensioniApp = () => {
                                 </div>
                                 <div>
                                   <strong>Recensione+commenti:</strong>{' '}
-                                  {libro.dataInvioRecensioneConCommenti}
+                                  {libro
+                                    .dataInvioRecensioneConCommenti}
                                 </div>
                                 <div>
                                   <strong>Preparazione:</strong>{' '}
-                                  {libro.dataPreparazionePubblicazione}
+                                  {
+                                    libro.dataPreparazionePubblicazione
+                                  }
                                 </div>
                               </div>
                             )}
@@ -1419,18 +1632,18 @@ const RecensioniApp = () => {
                         value={m}
                         disabled={libri.some(
                           (l) =>
+                            isBookAssigned(l) &&
                             l.mese === m &&
-                            l.nomeCognome &&
                             l.id !== selectedBook.id
                         )}
                       >
-                        {m}{' '}
+                        {m}
                         {libri.some(
                           (l) =>
+                            isBookAssigned(l) &&
                             l.mese === m &&
-                            l.nomeCognome &&
                             l.id !== selectedBook.id
-                        ) && '(occupato)'}
+                        ) && ' (occupato)'}
                       </option>
                     ))}
                   </select>
@@ -1553,9 +1766,8 @@ const RecensioniApp = () => {
                   marginBottom: '14px'
                 }}
               >
-                La tua candidatura è stata registrata. Riceverai (o potrai
-                ricevere) una email con tutti i dettagli del processo di
-                recensione.
+                La tua candidatura è stata registrata. Riceverai una email con
+                tutti i dettagli del processo di recensione.
               </p>
 
               <div
@@ -1653,7 +1865,7 @@ const RecensioniApp = () => {
                 gap: '16px'
               }}
             >
-              {/* COLONNA SINISTRA: CONFIG DI BASE */}
+              {/* COLONNA SINISTRA */}
               <div
                 style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
               >
@@ -1727,7 +1939,7 @@ const RecensioniApp = () => {
                 </div>
               </div>
 
-              {/* COLONNA DESTRA: CORPO EMAIL */}
+              {/* COLONNA DESTRA */}
               <div>
                 <label style={labelStyle}>Corpo email (template)</label>
                 <textarea
