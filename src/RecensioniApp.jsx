@@ -124,7 +124,12 @@ const MESI = [
 const COLORS = {
   accent: 'rgb(255, 97, 15)',
   secondary: 'rgb(5, 191, 224)',
-  primary: 'rgb(79, 23, 168)'
+  primary: 'rgb(79, 23, 168)',
+  // NUOVI COLORI AGGIUNTI
+  success: '#166534',      // Verde scuro (testo/bordi)
+  successBg: '#dcfce7',    // Verde chiaro (sfondi)
+  error: '#b91c1c',        // Rosso scuro
+  errorBg: '#fee2e2'       // Rosso chiaro
 };
 
 // Un libro è "assegnato" solo se ha mese + nome/cognome + email
@@ -1023,6 +1028,17 @@ const [filterStatus, setFilterStatus] = useState('all');
   // Stili input e label (accessori)
   const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' };
   const inputStyle = { width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '8px 12px', fontSize: '14px' };
+    const smallTagStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    background: '#f3f4f6',
+    borderRadius: '999px',
+    padding: '4px 10px',
+    fontSize: '11px',
+    color: '#4b5563',
+    marginTop: '8px'
+  };
 
   // --- SCHERMATA LOGIN ---
   if (showLogin) {
