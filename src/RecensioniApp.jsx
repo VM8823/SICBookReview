@@ -637,11 +637,7 @@ const RecensioniApp = () => {
     return;
   }
 
-  const normalizedFixedRecipients = normalizeRecipientsList(
-    emailConfig.fixedRecipients || ''
-  );
-
-  // Contesto con tutti i campi dinamici
+  // Contesto con i campi dinamici
   const context = {
     nome: libro.nome || '',
     cognome: libro.cognome || '',
@@ -662,7 +658,6 @@ const RecensioniApp = () => {
     link: normalizeUrl(libro.link || '')
   };
 
-  // Oggetto email usando il template soggetto
   const subject = applyTemplate(emailConfig.subjectTemplate, {
     ...context,
     Nome: context.nome,
@@ -673,16 +668,15 @@ const RecensioniApp = () => {
     Mese: context.mese
   });
 
-  // Parametri che passiamo a EmailJS – NIENTE più message_html
   const templateParams = {
+    // 👇 unico destinatario usato nella sezione Email recipients (To = to_email)
     to_email: toEmail,
     to_name:
       (context.nome && context.cognome
         ? `${context.nome} ${context.cognome}`
         : context.nomeCognome) || '',
     subject,
-    fixed_recipients: normalizedFixedRecipients,
-    // Variabili usate nel template HTML EmailJS
+    // 👇 nessun CC per ora, niente fixed_recipients
     Nome: context.nome,
     Cognome: context.cognome,
     NomeCompleto: context.nomeCognome,
@@ -734,11 +728,6 @@ const RecensioniApp = () => {
     return;
   }
 
-  const normalizedFixedRecipients = normalizeRecipientsList(
-    emailConfig.fixedRecipients || ''
-  );
-
-  // Dati fittizi di esempio
   const context = {
     nome: 'Mario',
     cognome: 'Rossi',
@@ -771,7 +760,6 @@ const RecensioniApp = () => {
     to_email: toEmail,
     to_name: 'Test Recipient',
     subject,
-    fixed_recipients: normalizedFixedRecipients,
     Nome: context.nome,
     Cognome: context.cognome,
     NomeCompleto: context.nomeCognome,
