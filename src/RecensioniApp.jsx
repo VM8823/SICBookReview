@@ -930,46 +930,49 @@ const [filterStatus, setFilterStatus] = useState('all');
   // --- STILI ---
   const appWrapperStyle = {
     minHeight: '100vh',
-    padding: '16px 12px', // Aumentato padding laterale per mobile
+    padding: '16px 12px',
     backgroundImage: backgroundImage
-      ? `url(${backgroundImage})`
-      : `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
+      ? 'url(${backgroundImage})'
+      : 'linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundAttachment: 'fixed',
-    fontFamily:
-      'Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    fontFamily: 'Segoe UI, sans-serif'
   };
 
   const appInnerStyle = {
-    maxWidth: '1600px', // Standard Desktop Wide
-    width: '95%',
+    maxWidth: '1600px', // Larghezza fissa ampia per TUTTI (Admin e Recensori)
+    width: '95%',       // Usa quasi tutto lo schermo
     margin: '0 auto',
-    padding: '20px', // Più respiro ai lati
+    padding: '24px',
     boxSizing: 'border-box'
   };
 
   const headerCardStyle = {
     position: 'sticky',
-    top: 6,
-    zIndex: 30,
-    background: 'rgba(255,255,255,0.96)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '20px',
-    boxShadow: '0 12px 25px rgba(15,23,42,0.12)',
-    padding: '14px 20px',
-    marginBottom: '20px'
+    top: 8,
+    zIndex: 40,
+    background: 'rgba(255,255,255,0.95)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '16px',
+    boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
+    padding: '16px',
+    marginBottom: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12
   };
 
   const cardGridStyle = {
     display: 'grid',
-    // auto-fill mantiene la dimensione della colonna anche se c'è un solo elemento
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-    gap: '32px', // Spaziatura maggiore
+    // 350px è la chiave: è abbastanza largo da farne stare 4 su schermi grandi (1600px)
+    // ma abbastanza piccolo da andare a capo su tablet/mobile.
+    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
+    gap: '32px', 
     marginBottom: '40px',
-    alignItems: 'start' // Evita che le card si "stirino" in altezza inutilmente
+    alignItems: 'start'
   };
-
+  
   const bookCardStyle = {
     background: 'rgba(255,255,255,0.97)',
     borderRadius: '16px',
@@ -981,19 +984,34 @@ const [filterStatus, setFilterStatus] = useState('all');
 
   const coverStyle = {
     width: '100%',
-    height: '350px', // Altezza fissa per allineare la griglia
-    objectFit: 'contain', // 'contain' se vuoi vedere tutto il libro, 'cover' riempie meglio
+    height: '350px', // Altezza fissa per uniformità
+    objectFit: 'contain', // Mostra TUTTA la copertina senza tagliarla
     objectPosition: 'center',
-    backgroundColor: '#f1f5f9', // Sfondo grigio chiaro per riempire lo spazio vuoto
+    backgroundColor: '#f8fafc', // Sfondo grigio chiaro elegante per riempire i lati vuoti
     display: 'block',
     borderBottom: '1px solid #e2e8f0'
   };
 
   const bookBodyStyle = {
-    padding: '16px 18px 18px 18px',
+    padding: '20px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px'
+    gap: '10px',
+    flex: 1
+  };
+
+  // Stile per il badge del mese
+  const monthBadgeStyle = {
+    display: 'inline-block',
+    padding: '4px 8px',
+    borderRadius: '6px',
+    background: '#ede9fe', 
+    color: COLORS.primary,
+    fontSize: '11px',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    border: '1px solid ${COLORS.primary}30'
   };
 
   const labelStyle = {
@@ -1148,20 +1166,6 @@ const [filterStatus, setFilterStatus] = useState('all');
       </div>
     );
   }
-
-  // PUNTO 12: Badge colorato per il mese
-  const monthBadgeStyle = {
-    display: 'inline-block',
-    padding: '3px 8px',
-    borderRadius: '6px',
-    background: '#ede9fe', // Viola chiarissimo
-    color: COLORS.primary,
-    fontSize: '10px',
-    fontWeight: 700,
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    border: `1px solid ${COLORS.primary}20`
-  };
 
   // PUNTO 14: Funzione per stile dinamico card (Verde se assegnato)
   const getBookCardStyle = (assigned) => ({
