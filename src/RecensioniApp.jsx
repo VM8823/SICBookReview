@@ -198,6 +198,8 @@ const RecensioniApp = () => {
   const [isLoading, setIsLoading] = useState(false); // PUNTO 6
   const [emailError, setEmailError] = useState(false); // PUNTO 7
   const [message, setMessage] = useState({ text: '', type: '' });
+  // PUNTO 11: Stato per i filtri Admin ('all', 'assigned', 'free')
+const [filterStatus, setFilterStatus] = useState('all');
 
   // Modale post conferma recensore
   const [showPostConfirmModal, setShowPostConfirmModal] = useState(false);
@@ -888,20 +890,36 @@ const RecensioniApp = () => {
   const recensioniAttive = libri.filter(isBookAssigned).length;
   const isBloccato = recensioniAttive >= 12;
 
-  // Ordinamento libri per admin
-  const libriOrdinatiPerAdmin = [...libri].sort((a, b) => {
-    const aAssigned = isBookAssigned(a);
-    const bAssigned = isBookAssigned(b);
+  // --- LOGICA FILTRI E ORDINAMENTO (Punti 11 e 14) ---
+  
+  // 1. Filtro preliminare
+  const libriFiltrati = libri.filter((l) => {
+    // Il recensore vede SEMPRE E SOLO quelli liberi (non assegnati)
+    if (!isAdmin) return !isBookAssigned(l);
+    
+    // L'admin vede in base al filtro selezionato
+    if (filterStatus === 'assigned') return isBookAssigned(l);
+    if (filterStatus === 'free') return !isBookAssigned(l);
+    return true; // 'all'
+  });
 
-    if (aAssigned && !bAssigned) return -1;
-    if (!aAssigned && bAssigned) return 1;
+  // 2. Ordinamento
+  const libriVisibili = [...libriFiltrati].sort((a, b) => {
+    // Logica Admin: Prima assegnati, poi per mese, poi alfabetico
+    if (isAdmin) {
+      const aAssigned = isBookAssigned(a);
+      const bAssigned = isBookAssigned(b);
 
-    if (aAssigned && bAssigned) {
-      const ia = MESI.indexOf(a.mese);
-      const ib = MESI.indexOf(b.mese);
-      if (ia !== -1 && ib !== -1 && ia !== ib) return ia - ib;
+      if (aAssigned && !bAssigned) return -1;
+      if (!aAssigned && bAssigned) return 1;
+
+      if (aAssigned && bAssigned) {
+        const ia = MESI.indexOf(a.mese);
+        const ib = MESI.indexOf(b.mese);
+        if (ia !== -1 && ib !== -1 && ia !== ib) return ia - ib;
+      }
     }
-
+    // Logica Recensore (e fallback alfabetico): Ordine alfabetico titolo
     const titoloA = (a.titolo || '').toLowerCase();
     const titoloB = (b.titolo || '').toLowerCase();
     if (titoloA < titoloB) return -1;
@@ -909,15 +927,10 @@ const RecensioniApp = () => {
     return 0;
   });
 
-  // Privacy: il recensore vede solo libri NON assegnati
-  const libriVisibili = isAdmin
-    ? libriOrdinatiPerAdmin
-    : libri.filter((l) => !isBookAssigned(l));
-
   // --- STILI ---
   const appWrapperStyle = {
     minHeight: '100vh',
-    padding: '16px 8px',
+    padding: '16px 12px', // Aumentato padding laterale per mobile
     backgroundImage: backgroundImage
       ? `url(${backgroundImage})`
       : `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
@@ -1131,6 +1144,31 @@ const RecensioniApp = () => {
     );
   }
 
+  // PUNTO 12: Badge colorato per il mese
+  const monthBadgeStyle = {
+    display: 'inline-block',
+    padding: '3px 8px',
+    borderRadius: '6px',
+    background: '#ede9fe', // Viola chiarissimo
+    color: COLORS.primary,
+    fontSize: '10px',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    border: `1px solid ${COLORS.primary}20`
+  };
+
+  // PUNTO 14: Funzione per stile dinamico card (Verde se assegnato)
+  const getBookCardStyle = (assigned) => ({
+    ...bookCardStyle,
+    background: assigned ? '#f0fdf4' : 'rgba(255,255,255,0.98)', // Verde chiaro se assegnato
+    border: assigned ? '1px solid #166534' : '1px solid transparent', // Bordo verde scuro
+    boxShadow: assigned 
+      ? '0 4px 12px rgba(22, 101, 52, 0.15)' 
+      : '0 10px 20px rgba(15,23,42,0.08)',
+    opacity: (isAdmin && filterStatus === 'free' && assigned) ? 0.5 : 1 // Opacità se filtro non corrisponde (extra polish)
+  });
+
   // --- APP PRINCIPALE ---
   return (
     <div style={appWrapperStyle}>
@@ -1218,6 +1256,31 @@ const RecensioniApp = () => {
       <option value={2028}>2028</option>
    </select>
 </div>
+
+{/* PUNTO 11: FILTRI TOGGLE */}
+              <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: '8px', padding: '2px', marginRight: '8px' }}>
+                {['all', 'assigned', 'free'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setFilterStatus(status)}
+                    style={{
+                      border: 'none',
+                      background: filterStatus === status ? '#ffffff' : 'transparent',
+                      color: filterStatus === status ? '#111827' : '#6b7280',
+                      boxShadow: filterStatus === status ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                      borderRadius: '6px',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textTransform: 'capitalize'
+                    }}
+                  >
+                    {status === 'all' ? 'Tutti' : status === 'assigned' ? 'Assegnati' : 'Liberi'}
+                  </button>
+                ))}
+              </div>
+
                   {/* NUOVO BOTTONE EXPORT CSV */}
     <button
       onClick={handleExportCsv}
@@ -1406,14 +1469,7 @@ const RecensioniApp = () => {
             {libriVisibili.map((libro) => (
               <div
                 key={libro.id}
-                style={{
-                  ...bookCardStyle,
-                  background: isBookAssigned(libro)
-                    ? '#dcfce7'
-                    : !isBookAssigned(libro) && isBloccato && isAdmin
-                    ? '#f3f4f6'
-                    : bookCardStyle.background
-                }}
+                style={getBookCardStyle(isBookAssigned(libro))} // PUNTO 14
               >
                 {libro.copertina && (
                   <img
@@ -1436,15 +1492,20 @@ const RecensioniApp = () => {
 >
   {/* MODIFICA: ID visibile solo se admin */}
   {isAdmin ? (
-    <span
-      style={{
-        fontSize: '11px',
-        fontWeight: 600,
-        color: COLORS.primary
-      }}
-    >
-      ID: {libro.id}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+  {isAdmin ? (
+    <span style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af' }}>
+      #{libro.id}
     </span>
+  ) : null}
+  
+  {/* PUNTO 12: Badge Mese (visibile se assegnato e admin) */}
+  {isBookAssigned(libro) && isAdmin && (
+    <span style={monthBadgeStyle}>
+      {libro.mese}
+    </span>
+  )}
+</div>
   ) : (
     <span></span> // Spacer vuoto per mantenere layout se necessario
   )}
@@ -2040,17 +2101,22 @@ const RecensioniApp = () => {
               >
                 Grazie per la tua disponibilità!
               </h3>
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: '#4b5563',
-                  marginTop: 0,
-                  marginBottom: '14px'
-                }}
-              >
-                La tua candidatura è stata registrata. Riceverai una email con
-                tutti i dettagli del processo di recensione.
-              </p>
+              {/* PUNTO 9: Feedback esplicito */}
+<div style={{ background: '#f9fafb', padding: '12px', borderRadius: '8px', margin: '12px 0', border: '1px solid #e5e7eb', textAlign: 'left' }}>
+  <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px 0' }}>
+    <strong>Libro:</strong> {libri.find(l => l.id === lastConfirmedBookId)?.titolo}
+  </p>
+  <p style={{ fontSize: '13px', color: '#374151', margin: '0 0 4px 0' }}>
+    <strong>Mese:</strong> {libri.find(l => l.id === lastConfirmedBookId)?.mese}
+  </p>
+  <p style={{ fontSize: '13px', color: '#374151', margin: 0 }}>
+    <strong>La tua email:</strong> {libri.find(l => l.id === lastConfirmedBookId)?.email}
+  </p>
+</div>
+
+<p style={{ fontSize: '13px', color: '#4b5563', marginBottom: '14px' }}>
+  Riceverai a breve una email con tutti i dettagli operativi e il template per la recensione.
+</p>
 
               <div
                 style={{
