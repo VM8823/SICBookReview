@@ -11,7 +11,10 @@ import {
   Lock,
   Unlock,
   FileText,
-  Download // aggiunto
+  Download, // aggiunto
+  Loader2,       // <--- NUOVO
+  CheckCircle,   // <--- NUOVO
+  AlertCircle    // <--- NUOVO
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { supabase } from './supabaseClient';
@@ -42,6 +45,15 @@ const storage = {
       console.error('Errore scrittura storage', error);
     }
   }
+};
+
+// Helper: Validazione Email (Regex)
+const validateEmail = (email) => {
+  return String(email)
+    .toLowerCase()
+    .match(
+      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+    );
 };
 
 // Sostituzione segnaposto nel template email
@@ -183,6 +195,8 @@ const RecensioniApp = () => {
     cognome: '',
     email: ''
   });
+  const [isLoading, setIsLoading] = useState(false); // PUNTO 6
+  const [emailError, setEmailError] = useState(false); // PUNTO 7
   const [message, setMessage] = useState({ text: '', type: '' });
 
   // Modale post conferma recensore
@@ -232,8 +246,9 @@ const RecensioniApp = () => {
 
   const showMessage = (text, type) => {
     setMessage({ text, type });
-    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    // Nessun timeout: il messaggio resta finché non si chiude
   };
+  const closeMessage = () => setMessage({ text: '', type: '' });
 
   const handleLogin = () => {
     if (adminPassword === 'admin2026') {
@@ -577,100 +592,96 @@ const RecensioniApp = () => {
   };
 
   const confermaRecensione = async () => {
-  // MODIFICA: Controllo campi separati
-  if (
-    !recensoreData.mese ||
-    !recensoreData.nome ||
-    !recensoreData.cognome ||
-    !recensoreData.email
-  ) {
-    showMessage('Compila tutti i campi', 'error');
-    return;
-  }
-
-  // Libri già assegnati (mese + nome + email)
-  const recensioniAttiveArray = libri.filter(isBookAssigned);
-
-  // Controllo: mese già occupato?
-  if (
-    recensioniAttiveArray.some(
-      (l) =>
-        l.mese === recensoreData.mese &&
-        l.id !== (selectedBook?.id ?? -1)
-    )
-  ) {
-    showMessage('Questo mese è già stato scelto', 'error');
-    return;
-  }
-
-  // Controllo: stessa email ha già una recensione?
-  if (
-    recensioniAttiveArray.some(
-      (l) =>
-        l.email === recensoreData.email &&
-        l.id !== (selectedBook?.id ?? -1)
-    )
-  ) {
-    showMessage('Hai già una recensione assegnata', 'error');
-    return;
-  }
-
-  // Recupero il libro attuale dallo stato
-  const libroOriginale = libri.find((l) => l.id === selectedBook.id);
-  if (!libroOriginale) {
-    showMessage('Errore interno: libro non trovato', 'error');
-    return;
-  }
-
-  // Calcolo delle date in base al mese scelto
-  const date = calcolaDate(recensoreData.mese);
-
-  // MODIFICA: Creazione NomeCompleto e assegnazione diretta
-  const nomePulito = recensoreData.nome.trim();
-  const cognomePulito = recensoreData.cognome.trim();
-  const nomeCompleto = `${nomePulito} ${cognomePulito}`;
-
-  // Versione completa del libro aggiornato
-  const libroAggiornato = {
-    ...libroOriginale,
-    mese: recensoreData.mese,
-    nomeCognome: nomeCompleto, // Per retrocompatibilità
-    nome: nomePulito,          // Campo separato
-    cognome: cognomePulito,    // Campo separato
-    email: recensoreData.email,
-    ...date
-  };
-
-  try {
-    // 🔁 Singolo update atomico su Supabase
-    const { error } = await supabase
-      .from('books')
-      .update(mapBookToDb(libroAggiornato, anno))
-      .eq('id', libroAggiornato.id);
-
-    if (error) {
-      console.error('Errore aggiornamento libro (confermaRecensione)', error);
-      showMessage('Errore durante il salvataggio della prenotazione', 'error');
+    // 1. Validazione campi vuoti
+    if (
+      !recensoreData.mese ||
+      !recensoreData.nome ||
+      !recensoreData.cognome ||
+      !recensoreData.email
+    ) {
+      showMessage('Compila tutti i campi', 'error');
       return;
     }
 
-    // ✅ Aggiorno lo stato con il libro aggiornato
-    setLibri((prevLibri) =>
-      prevLibri.map((l) => (l.id === libroAggiornato.id ? libroAggiornato : l))
-    );
+    // 2. Validazione Email (PUNTO 7)
+    if (!validateEmail(recensoreData.email)) {
+      setEmailError(true);
+      showMessage('Inserisci un indirizzo email valido', 'error');
+      return;
+    }
 
-    // Pulizia e modale di conferma
-    setSelectedBook(null);
-    // Reset con i nuovi campi
-    setRecensoreData({ mese: '', nome: '', cognome: '', email: '' });
-    setLastConfirmedBookId(libroAggiornato.id);
-    setShowPostConfirmModal(true);
-    showMessage('Recensione confermata!', 'success');
-  } catch (err) {
-    console.error('Errore generico confermaRecensione', err);
-    showMessage('Errore durante il salvataggio della prenotazione', 'error');
-  }
-};
+    // 3. Attiva Loader (PUNTO 6)
+    setIsLoading(true);
+
+    try {
+      // Controllo: mese già occupato?
+      const recensioniAttiveArray = libri.filter(isBookAssigned);
+      
+      if (
+        recensioniAttiveArray.some(
+          (l) =>
+            l.mese === recensoreData.mese &&
+            l.id !== (selectedBook?.id ?? -1)
+        )
+      ) {
+        showMessage('Questo mese è già stato scelto', 'error');
+        setIsLoading(false); // Spegni loader
+        return;
+      }
+
+      // Controllo: email duplicata?
+      if (
+        recensioniAttiveArray.some(
+          (l) =>
+            l.email === recensoreData.email &&
+            l.id !== (selectedBook?.id ?? -1)
+        )
+      ) {
+        showMessage('Hai già una recensione assegnata', 'error');
+        setIsLoading(false); // Spegni loader
+        return;
+      }
+
+      const libroOriginale = libri.find((l) => l.id === selectedBook.id);
+      const date = calcolaDate(recensoreData.mese);
+      const nomeCompleto = `${recensoreData.nome.trim()} ${recensoreData.cognome.trim()}`;
+
+      const libroAggiornato = {
+        ...libroOriginale,
+        mese: recensoreData.mese,
+        nomeCognome: nomeCompleto,
+        nome: recensoreData.nome.trim(),
+        cognome: recensoreData.cognome.trim(),
+        email: recensoreData.email.trim(),
+        ...date
+      };
+
+      // Update su Supabase
+      const { error } = await supabase
+        .from('books')
+        .update(mapBookToDb(libroAggiornato, anno))
+        .eq('id', libroAggiornato.id);
+
+      if (error) throw error;
+
+      // Successo
+      setLibri((prevLibri) =>
+        prevLibri.map((l) => (l.id === libroAggiornato.id ? libroAggiornato : l))
+      );
+      setSelectedBook(null);
+      setRecensoreData({ mese: '', nome: '', cognome: '', email: '' });
+      setLastConfirmedBookId(libroAggiornato.id);
+      setShowPostConfirmModal(true);
+      showMessage('Recensione confermata!', 'success');
+
+    } catch (err) {
+      console.error('Errore confermaRecensione', err);
+      showMessage('Errore durante il salvataggio', 'error');
+    } finally {
+      // 4. Spegni Loader (sempre, anche se errore)
+      setIsLoading(false);
+    }
+  };
 
   const handleSendEmail = async (libro) => {
   if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
@@ -1165,20 +1176,48 @@ const RecensioniApp = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {isAdmin && (
                 <>
-                  <input
-                    type="number"
-                    value={anno}
-                    onChange={(e) =>
-                      setAnno(parseInt(e.target.value || '0') || anno)
-                    }
-                    style={{
-                      width: '80px',
-                      borderRadius: '8px',
-                      border: '1px solid #d1d5db',
-                      padding: '6px 8px',
-                      fontSize: '13px'
-                    }}
-                  />
+                  {/* SELETTORE ANNO (PUNTO 5) */}
+<div 
+  style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    background: '#f9fafb', 
+    borderRadius: '8px', 
+    padding: '0 8px', 
+    border: '1px solid #d1d5db',
+    height: '34px'
+  }}
+>
+   <span 
+     style={{ 
+       fontSize: '11px', 
+       fontWeight: 700, 
+       color: '#6b7280', 
+       marginRight: 6,
+       letterSpacing: '0.5px'
+     }}
+   >
+     ANNO:
+   </span>
+   <select
+     value={anno}
+     onChange={(e) => setAnno(Number(e.target.value))}
+     style={{
+       border: 'none',
+       background: 'transparent',
+       fontWeight: 700,
+       fontSize: '13px',
+       outline: 'none',
+       cursor: 'pointer',
+       color: '#111827'
+     }}
+   >
+      <option value={2025}>2025</option>
+      <option value={2026}>2026</option>
+      <option value={2027}>2027</option>
+      <option value={2028}>2028</option>
+   </select>
+</div>
                   {/* NUOVO BOTTONE EXPORT CSV */}
     <button
       onClick={handleExportCsv}
@@ -1280,20 +1319,40 @@ const RecensioniApp = () => {
           </div>
 
           {message.text && (
-            <div
-              style={{
-                marginTop: '16px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                fontSize: '13px',
-                color: message.type === 'success' ? '#166534' : '#b91c1c',
-                background:
-                  message.type === 'success' ? '#dcfce7' : '#fee2e2'
-              }}
-            >
-              {message.text}
-            </div>
-          )}
+  <div
+    style={{
+      marginTop: '16px',
+      padding: '12px 16px',
+      borderRadius: '8px',
+      fontSize: '13px',
+      fontWeight: 500,
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'space-between',
+      color: message.type === 'success' ? '#166534' : '#b91c1c',
+      background: message.type === 'success' ? '#dcfce7' : '#fee2e2',
+      boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+    }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+       {message.type === 'success' ? <CheckCircle size={18}/> : <AlertCircle size={18}/>}
+       <span>{message.text}</span>
+    </div>
+    <button 
+      onClick={closeMessage} 
+      style={{ 
+        background: 'transparent', 
+        border: 'none', 
+        cursor: 'pointer', 
+        color: 'inherit',
+        display: 'flex',
+        alignItems: 'center'
+      }}
+    >
+      <X size={18}/>
+    </button>
+  </div>
+)}
         </div>
 
         {/* LIBRI o MESSAGGIO SLOT ESAURITI */}
@@ -1867,60 +1926,82 @@ const RecensioniApp = () => {
 </div>
 
                 <div>
-                  <label style={labelStyle}>Email</label>
-                  <input
-                    type="email"
-                    value={recensoreData.email}
-                    onChange={(e) =>
-                      setRecensoreData({
-                        ...recensoreData,
-                        email: e.target.value
-                      })
-                    }
-                    style={inputStyle}
-                    placeholder="mario.rossi@email.com"
-                  />
-                </div>
+  <label style={labelStyle}>Email</label>
+  <input
+    type="email"
+    value={recensoreData.email}
+    onChange={(e) => {
+      setRecensoreData({
+        ...recensoreData,
+        email: e.target.value
+      });
+      setEmailError(false); // Resetta errore mentre scrivi
+    }}
+    style={{
+      ...inputStyle,
+      border: emailError ? '1px solid #ef4444' : '1px solid #d1d5db',
+      outlineColor: emailError ? '#ef4444' : undefined
+    }}
+    placeholder="mario.rossi@email.com"
+  />
+  {emailError && (
+    <span style={{ fontSize: '11px', color: '#ef4444', marginTop: 4, display: 'block' }}>
+      Indirizzo email non valido
+    </span>
+  )}
+</div>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 10,
-                  marginTop: '16px'
-                }}
-              >
-                <button
-                  onClick={() => setSelectedBook(null)}
-                  style={{
-                    flex: 1,
-                    borderRadius: '10px',
-                    border: '1px solid #d1d5db',
-                    background: '#f3f4f6',
-                    color: '#374151',
-                    fontSize: '13px',
-                    padding: '8px 10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Annulla
-                </button>
-                <button
-                  onClick={confermaRecensione}
-                  style={{
-                    flex: 1,
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: COLORS.primary,
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    padding: '8px 10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Conferma
-                </button>
-              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: '16px' }}>
+  <button
+    onClick={() => setSelectedBook(null)}
+    disabled={isLoading} // Disabilita se carica
+    style={{
+      flex: 1,
+      borderRadius: '10px',
+      border: '1px solid #d1d5db',
+      background: '#f3f4f6',
+      color: '#374151',
+      fontSize: '13px',
+      padding: '8px 10px',
+      cursor: isLoading ? 'not-allowed' : 'pointer',
+      opacity: isLoading ? 0.7 : 1
+    }}
+  >
+    Annulla
+  </button>
+  <button
+    onClick={confermaRecensione}
+    disabled={isLoading} // Disabilita se carica
+    style={{
+      flex: 1,
+      borderRadius: '10px',
+      border: 'none',
+      background: COLORS.primary,
+      color: '#ffffff',
+      fontSize: '13px',
+      padding: '8px 10px',
+      cursor: isLoading ? 'not-allowed' : 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      opacity: isLoading ? 0.8 : 1
+    }}
+  >
+    {isLoading ? (
+      <>
+        <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+        Attendere...
+      </>
+    ) : (
+      'Conferma'
+    )}
+  </button>
+</div>
+
+{/* Stile per l'animazione rotazione */}
+<style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
             </div>
           </div>
         )}
