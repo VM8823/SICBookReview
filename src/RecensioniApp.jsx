@@ -904,7 +904,7 @@ const [filterStatus, setFilterStatus] = useState('all');
   });
 
   // 2. Ordinamento
-  const libriVisibili = [...libriFiltrati].sort((a, b) => {
+  const libriOrdinati = [...libriFiltrati].sort((a, b) => {
     // Logica Admin: Prima assegnati, poi per mese, poi alfabetico
     if (isAdmin) {
       const aAssigned = isBookAssigned(a);
@@ -1447,7 +1447,7 @@ const [filterStatus, setFilterStatus] = useState('all');
           </div>
         ) : (
           <div style={cardGridStyle}>
-            {libriVisibili.map((libro) => (
+            {libriOrdinati.map((libro) => (
               <div
                 key={libro.id}
                 style={getBookCardStyle(isBookAssigned(libro))} // PUNTO 14
