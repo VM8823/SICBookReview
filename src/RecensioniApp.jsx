@@ -935,26 +935,27 @@ const [filterStatus, setFilterStatus] = useState('all');
 // --- STILI DEFINITIVI (Sostituisci tutto il blocco stili con questo) ---
 
   const appWrapperStyle = {
-    minHeight: '100vh',
-    padding: '20px', // Spazio esterno generale
-    backgroundImage: backgroundImage
-      ? `url(${backgroundImage})`
-      : `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundAttachment: 'fixed',
-    fontFamily: 'Segoe UI, sans-serif',
-    display: 'flex',
-    justifyContent: 'center' // Centra il tutto
-  };
+  minHeight: '100vh',
+  width: '100vw',           // <-- FORZO LA LARGHEZZA A TUTTO SCHERMO
+  overflowX: 'hidden',      // <-- evita eventuali scrollbar orizzontali
+  padding: '20px 24px',     // un po' di respiro ai bordi
+  backgroundImage: backgroundImage
+    ? `url(${backgroundImage})`
+    : `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundAttachment: 'fixed',
+  fontFamily: 'Segoe UI, sans-serif',
+  display: 'flex',
+  justifyContent: 'center'
+};
 
-  const appInnerStyle = {
-    // MODIFICA CHIAVE: width 100% e max-width grande forzano l'espansione
-    width: '100%', 
-    maxWidth: '1600px', 
-    margin: '0',
-    boxSizing: 'border-box'
-  };
+const appInnerStyle = {
+  width: '100%',
+  maxWidth: '1400px',       // larghezza massima “desktop”
+  margin: '0 auto',         // centra il contenuto dentro il wrapper
+  boxSizing: 'border-box'
+};
 
   const headerCardStyle = {
     position: 'sticky',
