@@ -927,67 +927,74 @@ const [filterStatus, setFilterStatus] = useState('all');
     return 0;
   });
 
-  // --- STILI ---
+// --- STILI DEFINITIVI (Sostituisci tutto il blocco stili con questo) ---
+
   const appWrapperStyle = {
     minHeight: '100vh',
-    padding: '16px 12px',
+    padding: '20px', // Spazio esterno generale
     backgroundImage: backgroundImage
-      ? 'url(${backgroundImage})'
-      : 'linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})',
+      ? `url(${backgroundImage})`
+      : `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundAttachment: 'fixed',
-    fontFamily: 'Segoe UI, sans-serif'
+    fontFamily: 'Segoe UI, sans-serif',
+    display: 'flex',
+    justifyContent: 'center' // Centra il tutto
   };
 
   const appInnerStyle = {
-    maxWidth: '1600px', // Larghezza fissa ampia per TUTTI (Admin e Recensori)
-    width: '95%',       // Usa quasi tutto lo schermo
-    margin: '0 auto',
-    padding: '24px',
+    // MODIFICA CHIAVE: width 100% e max-width grande forzano l'espansione
+    width: '100%', 
+    maxWidth: '1600px', 
+    margin: '0',
     boxSizing: 'border-box'
   };
 
   const headerCardStyle = {
     position: 'sticky',
-    top: 8,
+    top: 10,
     zIndex: 40,
-    background: 'rgba(255,255,255,0.95)',
+    background: 'rgba(255,255,255,0.96)',
     backdropFilter: 'blur(12px)',
     borderRadius: '16px',
     boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
-    padding: '16px',
-    marginBottom: '24px',
+    padding: '20px 24px',
+    marginBottom: '30px',
     display: 'flex',
     flexDirection: 'column',
-    gap: 12
+    gap: 16
   };
 
   const cardGridStyle = {
     display: 'grid',
-    // 350px è la chiave: è abbastanza largo da farne stare 4 su schermi grandi (1600px)
-    // ma abbastanza piccolo da andare a capo su tablet/mobile.
-    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
-    gap: '32px', 
+    // 300px assicura 4 colonne su schermi standard (1300px+)
+    // auto-fill riempie la riga disponibile
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+    gap: '30px', 
     marginBottom: '40px',
     alignItems: 'start'
   };
-  
-  const bookCardStyle = {
-    background: 'rgba(255,255,255,0.97)',
+
+  const getBookCardStyle = (assigned) => ({
+    background: assigned ? '#f0fdf4' : '#ffffff',
     borderRadius: '16px',
-    boxShadow: '0 10px 20px rgba(15,23,42,0.08)',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+    border: assigned ? `2px solid ${COLORS.success}` : '1px solid transparent',
     overflow: 'hidden',
     display: 'flex',
-    flexDirection: 'column'
-  };
+    flexDirection: 'column',
+    transition: 'transform 0.2s',
+    opacity: (isAdmin && filterStatus === 'free' && assigned) ? 0.5 : 1,
+    height: '100%' // Assicura altezza uniforme
+  });
 
   const coverStyle = {
     width: '100%',
-    height: '350px', // Altezza fissa per uniformità
-    objectFit: 'contain', // Mostra TUTTA la copertina senza tagliarla
+    height: '380px', // Altezza generosa per vedere bene la copertina
+    objectFit: 'contain', // MOSTRA TUTTA LA COPERTINA
     objectPosition: 'center',
-    backgroundColor: '#f8fafc', // Sfondo grigio chiaro elegante per riempire i lati vuoti
+    backgroundColor: '#f8fafc', // Grigio chiaro per riempire i bordi
     display: 'block',
     borderBottom: '1px solid #e2e8f0'
   };
@@ -996,14 +1003,13 @@ const [filterStatus, setFilterStatus] = useState('all');
     padding: '20px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
+    gap: '12px',
     flex: 1
   };
 
-  // Stile per il badge del mese
   const monthBadgeStyle = {
     display: 'inline-block',
-    padding: '4px 8px',
+    padding: '4px 10px',
     borderRadius: '6px',
     background: '#ede9fe', 
     color: COLORS.primary,
@@ -1011,35 +1017,12 @@ const [filterStatus, setFilterStatus] = useState('all');
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
-    border: '1px solid ${COLORS.primary}30'
+    border: `1px solid ${COLORS.primary}30`
   };
 
-  const labelStyle = {
-    display: 'block',
-    fontSize: '12px',
-    fontWeight: 600,
-    color: '#6b7280',
-    marginBottom: '4px'
-  };
-
-  const inputStyle = {
-    width: '100%',
-    borderRadius: '8px',
-    border: '1px solid #d1d5db',
-    padding: '6px 10px',
-    fontSize: '13px'
-  };
-
-  const smallTagStyle = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    background: '#f3f4f6',
-    borderRadius: '999px',
-    padding: '4px 10px',
-    fontSize: '11px',
-    color: '#4b5563'
-  };
+  // Stili input e label (accessori)
+  const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' };
+  const inputStyle = { width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '8px 12px', fontSize: '14px' };
 
   // --- SCHERMATA LOGIN ---
   if (showLogin) {
@@ -1166,29 +1149,6 @@ const [filterStatus, setFilterStatus] = useState('all');
       </div>
     );
   }
-
-  // PUNTO 14: Funzione per stile dinamico card (Verde se assegnato)
-  const getBookCardStyle = (assigned) => ({
-    background: assigned ? '#f0fdf4' : '#ffffff',
-    borderRadius: '16px', // Più arrotondato
-    // Ombra più morbida e moderna
-    boxShadow: assigned 
-      ? '0 4px 6px -1px rgba(22, 163, 74, 0.1), 0 2px 4px -1px rgba(22, 163, 74, 0.06)' 
-      : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-    border: assigned ? `1px solid ${COLORS.success}` : '1px solid rgba(229, 231, 235, 0.5)',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'all 0.2s ease-in-out',
-    transform: 'translateY(0)', // Per l'animazione hover
-    cursor: 'default',
-    opacity: (isAdmin && filterStatus === 'free' && assigned) ? 0.5 : 1,
-    // Animazione hover solo se non assegnato (o sempre, a tua scelta)
-    ':hover': {
-       transform: 'translateY(-4px)',
-       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
-    }
-  });
 
   // --- APP PRINCIPALE ---
   return (
