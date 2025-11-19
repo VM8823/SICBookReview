@@ -88,7 +88,7 @@ const normalizeRecipientsList = (value) => {
   return value
     .split(',')                 // separo per virgola
     .map((s) => s.trim())       // tolgo spazi all’inizio/fine
-    .filter((s) => s.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s))
+    .filter((s) => s.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) //controllo email
     .join(', ');                // ricompongo con virgola + spazio
 };
 
@@ -668,6 +668,10 @@ const RecensioniApp = () => {
     Mese: context.mese
   });
 
+  const normalizedFixedRecipients = normalizeRecipientsList(
+    emailConfig.fixedRecipients || ''
+  );  
+
   const templateParams = {
     // 👇 unico destinatario usato nella sezione Email recipients (To = to_email)
     to_email: toEmail,
@@ -676,7 +680,7 @@ const RecensioniApp = () => {
         ? `${context.nome} ${context.cognome}`
         : context.nomeCognome) || '',
     subject,
-    // 👇 nessun CC per ora, niente fixed_recipients
+    fixed_recipients: normalizedFixedRecipients, // 👇 nessun CC per ora, niente fixed_recipients
     Nome: context.nome,
     Cognome: context.cognome,
     NomeCompleto: context.nomeCognome,
@@ -756,9 +760,14 @@ const RecensioniApp = () => {
     Mese: context.mese
   });
 
+  const normalizedFixedRecipients = normalizeRecipientsList(
+    emailConfig.fixedRecipients || ''
+  );
+
   const templateParams = {
     to_email: toEmail,
     to_name: 'Test Recipient',
+    fixed_recipients: normalizedFixedRecipients,
     subject,
     Nome: context.nome,
     Cognome: context.cognome,
