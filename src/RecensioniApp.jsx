@@ -942,10 +942,11 @@ const [filterStatus, setFilterStatus] = useState('all');
   };
 
   const appInnerStyle = {
-    maxWidth: isAdmin ? '1200px' : '100%',
+    maxWidth: '1280px', // Standard Desktop Wide
     width: '100%',
     margin: '0 auto',
-    padding: '0 12px'
+    padding: '24px 32px', // Più respiro ai lati
+    boxSizing: 'border-box'
   };
 
   const headerCardStyle = {
@@ -962,10 +963,11 @@ const [filterStatus, setFilterStatus] = useState('all');
 
   const cardGridStyle = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: '20px',
-    marginBottom: '32px',
-    alignItems: 'stretch'
+    // auto-fill mantiene la dimensione della colonna anche se c'è un solo elemento
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '24px', // Spaziatura maggiore
+    marginBottom: '40px',
+    alignItems: 'start' // Evita che le card si "stirino" in altezza inutilmente
   };
 
   const bookCardStyle = {
@@ -979,9 +981,11 @@ const [filterStatus, setFilterStatus] = useState('all');
 
   const coverStyle = {
     width: '100%',
-    maxHeight: '220px',
-    objectFit: 'cover',
-    display: 'block'
+    height: '240px', // Altezza fissa per allineare la griglia
+    objectFit: 'cover', // 'contain' se vuoi vedere tutto il libro, 'cover' riempie meglio
+    objectPosition: 'center top',
+    display: 'block',
+    borderBottom: '1px solid #f3f4f6'
   };
 
   const bookBodyStyle = {
@@ -1160,13 +1164,25 @@ const [filterStatus, setFilterStatus] = useState('all');
 
   // PUNTO 14: Funzione per stile dinamico card (Verde se assegnato)
   const getBookCardStyle = (assigned) => ({
-    ...bookCardStyle,
-    background: assigned ? '#f0fdf4' : 'rgba(255,255,255,0.98)', // Verde chiaro se assegnato
-    border: assigned ? '1px solid #166534' : '1px solid transparent', // Bordo verde scuro
+    background: assigned ? '#f0fdf4' : '#ffffff',
+    borderRadius: '16px', // Più arrotondato
+    // Ombra più morbida e moderna
     boxShadow: assigned 
-      ? '0 4px 12px rgba(22, 101, 52, 0.15)' 
-      : '0 10px 20px rgba(15,23,42,0.08)',
-    opacity: (isAdmin && filterStatus === 'free' && assigned) ? 0.5 : 1 // Opacità se filtro non corrisponde (extra polish)
+      ? '0 4px 6px -1px rgba(22, 163, 74, 0.1), 0 2px 4px -1px rgba(22, 163, 74, 0.06)' 
+      : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+    border: assigned ? `1px solid ${COLORS.success}` : '1px solid rgba(229, 231, 235, 0.5)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'all 0.2s ease-in-out',
+    transform: 'translateY(0)', // Per l'animazione hover
+    cursor: 'default',
+    opacity: (isAdmin && filterStatus === 'free' && assigned) ? 0.5 : 1,
+    // Animazione hover solo se non assegnato (o sempre, a tua scelta)
+    ':hover': {
+       transform: 'translateY(-4px)',
+       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+    }
   });
 
   // --- APP PRINCIPALE ---
