@@ -185,7 +185,7 @@ const RecensioniApp = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [showLogin, setShowLogin] = useState(true);
-  const [anno, setAnno] = useState(new Date().getFullYear());
+  const [anno, setAnno] = useState(2026); // Anno corrente da reinizializzare annualmente
   const [libri, setLibri] = useState([]);
   const [backgroundImage, setBackgroundImage] = useState('');
   const [selectedBook, setSelectedBook] = useState(null);
