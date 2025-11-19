@@ -75,6 +75,23 @@ const applyTemplate = (template, context) => {
   return result;
 };
 
+const normalizeUrl = (url) => {
+  if (!url) return '';
+  // se inizia già con http:// o https://, la lascio com'è
+  if (/^https?:\/\//i.test(url)) return url;
+  // altrimenti pre-pendo https://
+  return `https://${url}`;
+};
+
+const normalizeRecipientsList = (value) => {
+  if (!value) return '';
+  return value
+    .split(',')                 // separo per virgola
+    .map((s) => s.trim())       // tolgo spazi all’inizio/fine
+    .filter((s) => s.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s))
+    .join(', ');                // ricompongo con virgola + spazio
+};
+
 const MESI = [
   'Gennaio',
   'Febbraio',
@@ -596,113 +613,136 @@ const RecensioniApp = () => {
 };
 
   const handleSendEmail = async (libro) => {
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-      showMessage(
-        'Configura prima EmailJS nel codice (SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)',
-        'error'
-      );
-      return;
-    }
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    showMessage(
+      'Configura prima EmailJS nel codice (SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)',
+      'error'
+    );
+    return;
+  }
 
-    if (!libro.email) {
-      showMessage(
-        'Nessuna email recensore impostata per questo libro',
-        'error'
-      );
-      return;
-    }
+  if (!libro) {
+    showMessage('Nessun libro selezionato per l’invio email', 'error');
+    return;
+  }
 
-    // Ricomputo date in base al mese corrente del libro
-    const dates = calcolaDate(libro.mese || '');
+  // Email recensore "pulita"
+  const rawEmail = libro.email || '';
+  const toEmail = rawEmail.trim();
 
-    const context = {
-      ...libro,
-      ...dates,
-      reviewTemplateUrl: emailConfig.reviewTemplateUrl,
-      privacyTemplateUrl: emailConfig.privacyTemplateUrl
-    };
+  if (!toEmail) {
+    showMessage(
+      'Nessuna email recensore valida impostata per questo libro',
+      'error'
+    );
+    return;
+  }
 
-    const subject = applyTemplate(emailConfig.subjectTemplate, context);
-    const body = applyTemplate(emailConfig.bodyTemplate, context);
+  // Normalizzo i destinatari fissi (CC)
+  const normalizedFixedRecipients = normalizeRecipientsList(
+    emailConfig.fixedRecipients || ''
+  );
 
-    const templateParams = {
-      to_email: libro.email,
-      to_name: libro.nome || libro.nomeCognome || '',
-      subject,
-      message_html: body,
-      fixed_recipients: emailConfig.fixedRecipients, 
-    };
-
-    try {
-      await emailjs.send(
-        EMAILJS_SERVICE_ID,
-        EMAILJS_TEMPLATE_ID,
-        templateParams,
-        EMAILJS_PUBLIC_KEY
-      );
-      showMessage('Email inviata al recensore', 'success');
-    } catch (error) {
-      console.error('Errore invio email', error);
-      showMessage("Errore durante l'invio della email", 'error');
-    }
+  const context = {
+    ...libro,
+    link: normalizeUrl(libro.link || ''),
+    reviewTemplateUrl: emailConfig.reviewTemplateUrl,
+    privacyTemplateUrl: emailConfig.privacyTemplateUrl
   };
+
+  const subject = applyTemplate(emailConfig.subjectTemplate, context);
+  const body = applyTemplate(emailConfig.bodyTemplate, context);
+
+  const templateParams = {
+    to_email: toEmail,
+    to_name:
+      (libro.nome && libro.cognome
+        ? `${libro.nome} ${libro.cognome}`
+        : libro.nomeCognome) || '',
+    subject,
+    message_html: body,
+    fixed_recipients: normalizedFixedRecipients
+  };
+
+  try {
+    console.log('Invio email recensore, params:', templateParams);
+    await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
+      templateParams,
+      EMAILJS_PUBLIC_KEY
+    );
+    showMessage('Email inviata al recensore', 'success');
+  } catch (error) {
+    console.error('Errore invio email recensore', error);
+    showMessage("Errore durante l'invio della email al recensore", 'error');
+  }
+};
 
   const handleSendTestEmail = async () => {
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-      showMessage(
-        'Configura prima EmailJS nel codice (SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)',
-        'error'
-      );
-      return;
-    }
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+    showMessage(
+      'Configura prima EmailJS nel codice (SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY)',
+      'error'
+    );
+    return;
+  }
 
-    if (!testEmailAddress) {
-      showMessage('Inserisci una email di test', 'error');
-      return;
-    }
+  const rawEmail = testEmailAddress || '';
+  const toEmail = rawEmail.trim();
 
-    const context = {
-      nome: 'Mario',
-      cognome: 'Rossi',
-      nomeCognome: 'Mario Rossi',
-      titolo: 'Titolo di esempio',
-      autore: 'Autore di esempio',
-      mese: 'Gennaio',
-      dataPubblicazione: '31/01/2026',
-      dataInvioInfo: '01/01/2026',
-      dataInvioRecensione: '10/01/2026',
-      dataInvioCommenti: '15/01/2026',
-      dataInvioRecensioneConCommenti: '20/01/2026',
-      dataPreparazionePubblicazione: '25/01/2026',
-      link: 'https://www.pmi-sic.org',
-      reviewTemplateUrl: emailConfig.reviewTemplateUrl,
-      privacyTemplateUrl: emailConfig.privacyTemplateUrl
-    };
+  if (!toEmail) {
+    showMessage('Inserisci una email di test', 'error');
+    return;
+  }
 
-    const subject = applyTemplate(emailConfig.subjectTemplate, context);
-    const body = applyTemplate(emailConfig.bodyTemplate, context);
+  const normalizedFixedRecipients = normalizeRecipientsList(
+    emailConfig.fixedRecipients || ''
+  );
 
-    const templateParams = {
-      to_email: testEmailAddress,
-      to_name: 'Test Recipient',
-      subject,
-      message_html: body,
-      fixed_recipients: emailConfig.fixedRecipients
-    };
-
-    try {
-      await emailjs.send(
-        EMAILJS_SERVICE_ID,
-        EMAILJS_TEMPLATE_ID,
-        templateParams,
-        EMAILJS_PUBLIC_KEY
-      );
-      showMessage('Email di prova inviata', 'success');
-    } catch (error) {
-      console.error('Errore invio email di prova', error);
-      showMessage("Errore durante l'invio della email di prova", 'error');
-    }
+  const context = {
+    nome: 'Mario',
+    cognome: 'Rossi',
+    nomeCognome: 'Mario Rossi',
+    titolo: 'Titolo di esempio',
+    autore: 'Autore di esempio',
+    mese: 'Gennaio',
+    dataPubblicazione: '31/01/2026',
+    dataInvioInfo: '01/01/2026',
+    dataInvioRecensione: '10/01/2026',
+    dataInvioCommenti: '15/01/2026',
+    dataInvioRecensioneConCommenti: '20/01/2026',
+    dataPreparazionePubblicazione: '25/01/2026',
+    link: normalizeUrl('https://www.pmi-sic.org'),
+    reviewTemplateUrl: emailConfig.reviewTemplateUrl,
+    privacyTemplateUrl: emailConfig.privacyTemplateUrl
   };
+
+  const subject = applyTemplate(emailConfig.subjectTemplate, context);
+  const body = applyTemplate(emailConfig.bodyTemplate, context);
+
+  const templateParams = {
+    to_email: toEmail,
+    to_name: 'Test Recipient',
+    subject,
+    message_html: body,
+    fixed_recipients: normalizedFixedRecipients
+  };
+
+  try {
+    console.log('Invio email di prova, params:', templateParams);
+    await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
+      templateParams,
+      EMAILJS_PUBLIC_KEY
+    );
+    showMessage('Email di prova inviata', 'success');
+  } catch (error) {
+    console.error('Errore invio email di prova', error);
+    showMessage("Errore durante l'invio della email di prova", 'error');
+  }
+};
 
   const handleSendEmailFromModal = () => {
     const libro = libri.find((l) => l.id === lastConfirmedBookId);
@@ -1518,7 +1558,7 @@ const RecensioniApp = () => {
                       )}
                       {libro.link && (
                         <a
-                          href={libro.link}
+                          href={normalizeUrl(libro.link)}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{
