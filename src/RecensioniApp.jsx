@@ -626,7 +626,6 @@ const RecensioniApp = () => {
     return;
   }
 
-  // Email recensore "pulita"
   const rawEmail = libro.email || '';
   const toEmail = rawEmail.trim();
 
@@ -638,30 +637,69 @@ const RecensioniApp = () => {
     return;
   }
 
-  // Normalizzo i destinatari fissi (CC)
   const normalizedFixedRecipients = normalizeRecipientsList(
     emailConfig.fixedRecipients || ''
   );
 
+  // Contesto con tutti i campi dinamici
   const context = {
-    ...libro,
-    link: normalizeUrl(libro.link || ''),
-    reviewTemplateUrl: emailConfig.reviewTemplateUrl,
-    privacyTemplateUrl: emailConfig.privacyTemplateUrl
+    nome: libro.nome || '',
+    cognome: libro.cognome || '',
+    nomeCognome: libro.nomeCognome || '',
+    titolo: libro.titolo || '',
+    autore: libro.autore || '',
+    mese: libro.mese || '',
+    dataPubblicazione: libro.dataPubblicazione || '',
+    dataInvioInfo: libro.dataInvioInfo || '',
+    dataInvioRecensione: libro.dataInvioRecensione || '',
+    dataInvioCommenti: libro.dataInvioCommenti || '',
+    dataInvioRecensioneConCommenti:
+      libro.dataInvioRecensioneConCommenti || '',
+    dataPreparazionePubblicazione:
+      libro.dataPreparazionePubblicazione || '',
+    reviewTemplateUrl: emailConfig.reviewTemplateUrl || '',
+    privacyTemplateUrl: emailConfig.privacyTemplateUrl || '',
+    link: normalizeUrl(libro.link || '')
   };
 
-  const subject = applyTemplate(emailConfig.subjectTemplate, context);
-  const body = applyTemplate(emailConfig.bodyTemplate, context);
+  // Oggetto email usando il template soggetto
+  const subject = applyTemplate(emailConfig.subjectTemplate, {
+    ...context,
+    Nome: context.nome,
+    Cognome: context.cognome,
+    NomeCompleto: context.nomeCognome,
+    Titolo: context.titolo,
+    Autore: context.autore,
+    Mese: context.mese
+  });
 
+  // Parametri che passiamo a EmailJS – NIENTE più message_html
   const templateParams = {
     to_email: toEmail,
     to_name:
-      (libro.nome && libro.cognome
-        ? `${libro.nome} ${libro.cognome}`
-        : libro.nomeCognome) || '',
+      (context.nome && context.cognome
+        ? `${context.nome} ${context.cognome}`
+        : context.nomeCognome) || '',
     subject,
-    message_html: body,
-    fixed_recipients: normalizedFixedRecipients
+    fixed_recipients: normalizedFixedRecipients,
+    // Variabili usate nel template HTML EmailJS
+    Nome: context.nome,
+    Cognome: context.cognome,
+    NomeCompleto: context.nomeCognome,
+    Titolo: context.titolo,
+    Autore: context.autore,
+    Mese: context.mese,
+    DataPubblicazione: context.dataPubblicazione,
+    DataInvioInfo: context.dataInvioInfo,
+    DataInvioRecensione: context.dataInvioRecensione,
+    DataInvioCommenti: context.dataInvioCommenti,
+    DataInvioRecensioneConCommenti:
+      context.dataInvioRecensioneConCommenti,
+    DataPreparazionePubblicazione:
+      context.dataPreparazionePubblicazione,
+    TemplateRecensioneUrl: context.reviewTemplateUrl,
+    InformativaPrivacyUrl: context.privacyTemplateUrl,
+    AmazonUrl: context.link
   };
 
   try {
@@ -700,6 +738,7 @@ const RecensioniApp = () => {
     emailConfig.fixedRecipients || ''
   );
 
+  // Dati fittizi di esempio
   const context = {
     nome: 'Mario',
     cognome: 'Rossi',
@@ -707,26 +746,49 @@ const RecensioniApp = () => {
     titolo: 'Titolo di esempio',
     autore: 'Autore di esempio',
     mese: 'Gennaio',
-    dataPubblicazione: '31/01/2026',
-    dataInvioInfo: '01/01/2026',
-    dataInvioRecensione: '10/01/2026',
-    dataInvioCommenti: '15/01/2026',
-    dataInvioRecensioneConCommenti: '20/01/2026',
-    dataPreparazionePubblicazione: '25/01/2026',
-    link: normalizeUrl('https://www.pmi-sic.org'),
-    reviewTemplateUrl: emailConfig.reviewTemplateUrl,
-    privacyTemplateUrl: emailConfig.privacyTemplateUrl
+    dataPubblicazione: '27/01/2026',
+    dataInvioInfo: '04/01/2026',
+    dataInvioRecensione: '23/01/2026',
+    dataInvioCommenti: '24/01/2026',
+    dataInvioRecensioneConCommenti: '25/01/2026',
+    dataPreparazionePubblicazione: '26/01/2026',
+    reviewTemplateUrl: emailConfig.reviewTemplateUrl || '',
+    privacyTemplateUrl: emailConfig.privacyTemplateUrl || '',
+    link: normalizeUrl('https://www.pmi-sic.org')
   };
 
-  const subject = applyTemplate(emailConfig.subjectTemplate, context);
-  const body = applyTemplate(emailConfig.bodyTemplate, context);
+  const subject = applyTemplate(emailConfig.subjectTemplate, {
+    ...context,
+    Nome: context.nome,
+    Cognome: context.cognome,
+    NomeCompleto: context.nomeCognome,
+    Titolo: context.titolo,
+    Autore: context.autore,
+    Mese: context.mese
+  });
 
   const templateParams = {
     to_email: toEmail,
     to_name: 'Test Recipient',
     subject,
-    message_html: body,
-    fixed_recipients: normalizedFixedRecipients
+    fixed_recipients: normalizedFixedRecipients,
+    Nome: context.nome,
+    Cognome: context.cognome,
+    NomeCompleto: context.nomeCognome,
+    Titolo: context.titolo,
+    Autore: context.autore,
+    Mese: context.mese,
+    DataPubblicazione: context.dataPubblicazione,
+    DataInvioInfo: context.dataInvioInfo,
+    DataInvioRecensione: context.dataInvioRecensione,
+    DataInvioCommenti: context.dataInvioCommenti,
+    DataInvioRecensioneConCommenti:
+      context.dataInvioRecensioneConCommenti,
+    DataPreparazionePubblicazione:
+      context.dataPreparazionePubblicazione,
+    TemplateRecensioneUrl: context.reviewTemplateUrl,
+    InformativaPrivacyUrl: context.privacyTemplateUrl,
+    AmazonUrl: context.link
   };
 
   try {
