@@ -942,10 +942,10 @@ const [filterStatus, setFilterStatus] = useState('all');
   };
 
   const appInnerStyle = {
-    maxWidth: '1280px', // Standard Desktop Wide
-    width: '100%',
+    maxWidth: '1600px', // Standard Desktop Wide
+    width: '95%',
     margin: '0 auto',
-    padding: '24px 32px', // Più respiro ai lati
+    padding: '20px', // Più respiro ai lati
     boxSizing: 'border-box'
   };
 
@@ -964,7 +964,7 @@ const [filterStatus, setFilterStatus] = useState('all');
   const cardGridStyle = {
     display: 'grid',
     // auto-fill mantiene la dimensione della colonna anche se c'è un solo elemento
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
     gap: '24px', // Spaziatura maggiore
     marginBottom: '40px',
     alignItems: 'start' // Evita che le card si "stirino" in altezza inutilmente
@@ -981,11 +981,12 @@ const [filterStatus, setFilterStatus] = useState('all');
 
   const coverStyle = {
     width: '100%',
-    height: '240px', // Altezza fissa per allineare la griglia
-    objectFit: 'cover', // 'contain' se vuoi vedere tutto il libro, 'cover' riempie meglio
-    objectPosition: 'center top',
+    height: '320px', // Altezza fissa per allineare la griglia
+    objectFit: 'contain', // 'contain' se vuoi vedere tutto il libro, 'cover' riempie meglio
+    objectPosition: 'center',
+    backgroundColor: '#f3f4f6', // Sfondo grigio chiaro per riempire lo spazio vuoto
     display: 'block',
-    borderBottom: '1px solid #f3f4f6'
+    borderBottom: '1px solid #e5e7eb'
   };
 
   const bookBodyStyle = {
