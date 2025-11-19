@@ -964,8 +964,8 @@ const [filterStatus, setFilterStatus] = useState('all');
   const cardGridStyle = {
     display: 'grid',
     // auto-fill mantiene la dimensione della colonna anche se c'è un solo elemento
-    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-    gap: '24px', // Spaziatura maggiore
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '32px', // Spaziatura maggiore
     marginBottom: '40px',
     alignItems: 'start' // Evita che le card si "stirino" in altezza inutilmente
   };
@@ -981,12 +981,12 @@ const [filterStatus, setFilterStatus] = useState('all');
 
   const coverStyle = {
     width: '100%',
-    height: '320px', // Altezza fissa per allineare la griglia
+    height: '350px', // Altezza fissa per allineare la griglia
     objectFit: 'contain', // 'contain' se vuoi vedere tutto il libro, 'cover' riempie meglio
     objectPosition: 'center',
-    backgroundColor: '#f3f4f6', // Sfondo grigio chiaro per riempire lo spazio vuoto
+    backgroundColor: '#f1f5f9', // Sfondo grigio chiaro per riempire lo spazio vuoto
     display: 'block',
-    borderBottom: '1px solid #e5e7eb'
+    borderBottom: '1px solid #e2e8f0'
   };
 
   const bookBodyStyle = {
