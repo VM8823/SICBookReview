@@ -178,7 +178,8 @@ const RecensioniApp = () => {
   const [selectedBook, setSelectedBook] = useState(null);
   const [recensoreData, setRecensoreData] = useState({
     mese: '',
-    nomeCognome: '',
+    nome: '',
+    cognome: '',
     email: ''
   });
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -514,15 +515,18 @@ const RecensioniApp = () => {
     setSelectedBook(libro);
     setRecensoreData({
       mese: '',
-      nomeCognome: '',
+      nome: '',
+      cognome: '',
       email: ''
     });
   };
 
   const confermaRecensione = async () => {
+  // MODIFICA: Controllo campi separati
   if (
     !recensoreData.mese ||
-    !recensoreData.nomeCognome ||
+    !recensoreData.nome ||
+    !recensoreData.cognome ||
     !recensoreData.email
   ) {
     showMessage('Compila tutti i campi', 'error');
@@ -566,18 +570,18 @@ const RecensioniApp = () => {
   // Calcolo delle date in base al mese scelto
   const date = calcolaDate(recensoreData.mese);
 
-  // Split nome/cognome
-  const partiNome = recensoreData.nomeCognome.trim().split(' ');
-  const nome = partiNome[0] || '';
-  const cognome = partiNome.slice(1).join(' ') || '';
+  // MODIFICA: Creazione NomeCompleto e assegnazione diretta
+  const nomePulito = recensoreData.nome.trim();
+  const cognomePulito = recensoreData.cognome.trim();
+  const nomeCompleto = `${nomePulito} ${cognomePulito}`;
 
   // Versione completa del libro aggiornato
   const libroAggiornato = {
     ...libroOriginale,
     mese: recensoreData.mese,
-    nomeCognome: recensoreData.nomeCognome,
-    nome,
-    cognome,
+    nomeCognome: nomeCompleto, // Per retrocompatibilità
+    nome: nomePulito,          // Campo separato
+    cognome: cognomePulito,    // Campo separato
     email: recensoreData.email,
     ...date
   };
@@ -602,7 +606,8 @@ const RecensioniApp = () => {
 
     // Pulizia e modale di conferma
     setSelectedBook(null);
-    setRecensoreData({ mese: '', nomeCognome: '', email: '' });
+    // Reset con i nuovi campi
+    setRecensoreData({ mese: '', nome: '', cognome: '', email: '' });
     setLastConfirmedBookId(libroAggiornato.id);
     setShowPostConfirmModal(true);
     showMessage('Recensione confermata!', 'success');
@@ -1288,22 +1293,28 @@ const RecensioniApp = () => {
                 <div style={bookBodyStyle}>
                   {/* HEADER CARD */}
                   <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: 4
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: COLORS.primary
-                      }}
-                    >
-                      ID: {libro.id}
-                    </span>
+  style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+    minHeight: '24px' // Aggiunto per mantenere allineamento se ID sparisce
+  }}
+>
+  {/* MODIFICA: ID visibile solo se admin */}
+  {isAdmin ? (
+    <span
+      style={{
+        fontSize: '11px',
+        fontWeight: 600,
+        color: COLORS.primary
+      }}
+    >
+      ID: {libro.id}
+    </span>
+  ) : (
+    <span></span> // Spacer vuoto per mantenere layout se necessario
+  )}
                     {isAdmin && (
                       <div style={{ display: 'flex', gap: 6 }}>
                         {isBookAssigned(libro) && (
@@ -1747,21 +1758,39 @@ const RecensioniApp = () => {
                   </select>
                 </div>
 
-                <div>
-                  <label style={labelStyle}>Nome e Cognome</label>
-                  <input
-                    type="text"
-                    value={recensoreData.nomeCognome}
-                    onChange={(e) =>
-                      setRecensoreData({
-                        ...recensoreData,
-                        nomeCognome: e.target.value
-                      })
-                    }
-                    style={inputStyle}
-                    placeholder="Mario Rossi"
-                  />
-                </div>
+                {/* MODIFICA: Due input affiancati per Nome e Cognome */}
+<div style={{ display: 'flex', gap: 10 }}>
+  <div style={{ flex: 1 }}>
+    <label style={labelStyle}>Nome</label>
+    <input
+      type="text"
+      value={recensoreData.nome}
+      onChange={(e) =>
+        setRecensoreData({
+          ...recensoreData,
+          nome: e.target.value
+        })
+      }
+      style={inputStyle}
+      placeholder="Mario"
+    />
+  </div>
+  <div style={{ flex: 1 }}>
+    <label style={labelStyle}>Cognome</label>
+    <input
+      type="text"
+      value={recensoreData.cognome}
+      onChange={(e) =>
+        setRecensoreData({
+          ...recensoreData,
+          cognome: e.target.value
+        })
+      }
+      style={inputStyle}
+      placeholder="Rossi"
+    />
+  </div>
+</div>
 
                 <div>
                   <label style={labelStyle}>Email</label>
