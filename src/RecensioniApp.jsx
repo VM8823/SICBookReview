@@ -631,7 +631,6 @@ const RecensioniApp = () => {
       subject,
       message_html: body,
       fixed_recipients: emailConfig.fixedRecipients, 
-      CoverImage: libro.copertina || ''
     };
 
     try {
