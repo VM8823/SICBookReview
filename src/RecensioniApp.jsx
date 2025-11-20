@@ -193,8 +193,8 @@ const RecensioniApp = () => {
   const [anno, setAnno] = useState(2026); // Anno corrente da reinizializzare annualmente
   const [libri, setLibri] = useState([]);
   const [backgroundImage, setBackgroundImage] = useState('');
-  const [pmiLogo, setPmiLogo] = useState('');
-  const [sicLogo, setSicLogo] = useState('');
+  // const [pmiLogo, setPmiLogo] = useState('');
+  // const [sicLogo, setSicLogo] = useState('');
   const [selectedBook, setSelectedBook] = useState(null);
   const [recensoreData, setRecensoreData] = useState({
     mese: '',
@@ -346,15 +346,15 @@ const [filterStatus, setFilterStatus] = useState('all');
         setBackgroundImage(bgResult.value);
       }
 
-      const pmiLogoResult = await storage.get('pmi_logo');
-      if (pmiLogoResult) {
-        setPmiLogo(pmiLogoResult.value);
-      }
+      // const pmiLogoResult = await storage.get('pmi_logo');
+      // if (pmiLogoResult) {
+        // setPmiLogo(pmiLogoResult.value);
+      // }
 
-      const sicLogoResult = await storage.get('sic_logo');
-      if (sicLogoResult) {
-        setSicLogo(sicLogoResult.value);
-      }
+      // const sicLogoResult = await storage.get('sic_logo');
+      // if (sicLogoResult) {
+        // setSicLogo(sicLogoResult.value);
+      // }
 
       const emailCfg = await storage.get('email_config');
 
@@ -606,41 +606,41 @@ const [filterStatus, setFilterStatus] = useState('all');
     }
   };
 
-    const handleLogoUpload = (e, type) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    // const handleLogoUpload = (e, type) => {
+    // const file = e.target.files[0];
+    // if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64 = event.target.result;
-      try {
-        if (type === 'pmi') {
-          setPmiLogo(base64);
-          await storage.set('pmi_logo', base64);
-        } else if (type === 'sic') {
-          setSicLogo(base64);
-          await storage.set('sic_logo', base64);
-        }
-      } catch (err) {
-        console.error('Errore salvataggio logo', err);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
+    // const reader = new FileReader();
+    // reader.onload = async (event) => {
+      // const base64 = event.target.result;
+      // try {
+        // if (type === 'pmi') {
+          // setPmiLogo(base64);
+          // await storage.set('pmi_logo', base64);
+        // } else if (type === 'sic') {
+          // setSicLogo(base64);
+          // await storage.set('sic_logo', base64);
+        //}
+      //} catch (err) {
+        //console.error('Errore salvataggio logo', err);
+      //}
+    //};
+    //reader.readAsDataURL(file);
+  //}; 
 
-  const handleLogoRemove = async (type) => {
-    try {
-      if (type === 'pmi') {
-        setPmiLogo('');
-        await storage.set('pmi_logo', '');
-      } else if (type === 'sic') {
-        setSicLogo('');
-        await storage.set('sic_logo', '');
-      }
-    } catch (err) {
-      console.error('Errore rimozione logo', err);
-    }
-  };
+  //const handleLogoRemove = async (type) => {
+    //try {
+      //if (type === 'pmi') {
+        //setPmiLogo('');
+        //await storage.set('pmi_logo', '');
+      //} else if (type === 'sic') {
+        //setSicLogo('');
+        //await storage.set('sic_logo', '');
+      //}
+    //} catch (err) {
+      //console.error('Errore rimozione logo', err);
+    //}
+  //};
 
   const selezionaLibro = (libro) => {
     if (isBookAssigned(libro)) {
@@ -1141,63 +1141,36 @@ const emailPanelStyle = {
           }}
         >
 
-            {/* LOGHI + TITOLO */}
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              {/* Logo PMI-SIC centrato in alto (se caricato) */}
-              {pmiLogo && (
-                <img
-                  src={pmiLogo}
-                  alt="PMI-SIC"
-                  style={{
-                    maxWidth: '200px',
-                    maxHeight: '80px',
-                    objectFit: 'contain',
-                    marginBottom: '16px'
-                  }}
-                />
-              )}
+            {/* LOGO + TITOLO */}
+<div style={{ textAlign: 'center', marginBottom: '24px' }}>
+  {/* Logo fisso PMI-SIC dal repo (cartella public) */}
+  <img
+    src={import.meta.env.BASE_URL + 'pmisiclogo.png'}
+    alt="PMI-SIC"
+    style={{
+      maxWidth: '200px',
+      maxHeight: '80px',
+      objectFit: 'contain',
+      marginBottom: '16px'
+    }}
+  />
 
-              {/* Riga con logo SIC e titolo */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: 10,
-                  marginBottom: 4
-                }}
-              >
-                {sicLogo ? (
-                  <img
-                    src={sicLogo}
-                    alt="SIC Book Review"
-                    style={{
-                      height: '32px',
-                      width: 'auto',
-                      objectFit: 'contain'
-                    }}
-                  />
-                ) : !pmiLogo ? (
-                  // Se non c'è nessun logo, fallback sull'icona libro
-                  <BookOpen size={32} color={COLORS.primary} />
-                ) : null}
+  <h1
+    style={{
+      fontSize: '26px',
+      fontWeight: '700',
+      color: '#111827',
+      margin: 0
+    }}
+  >
+    SIC Book Review
+  </h1>
 
-                <h1
-                  style={{
-                    fontSize: '26px',
-                    fontWeight: '700',
-                    color: '#111827',
-                    margin: 0
-                  }}
-                >
-                  SIC Book Review – {anno}
-                </h1>
-              </div>
+  <p style={{ color: '#6b7280', marginTop: '8px' }}>
+    Seleziona il tuo ruolo
+  </p>
+</div>
 
-              <p style={{ color: '#6b7280', marginTop: '8px' }}>
-                Seleziona il tuo ruolo
-              </p>
-            </div>
 
             {/* BOTTONI RUOLO + LOGIN ADMIN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1294,31 +1267,20 @@ const emailPanelStyle = {
             }}
           >
             <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {sicLogo ? (
-                  <img
-                    src={sicLogo}
-                    alt="SIC Book Review"
-                    style={{
-                      height: '32px',
-                      width: 'auto',
-                      objectFit: 'contain'
-                    }}
-                  />
-                ) : (
-                  <BookOpen size={32} color={COLORS.primary} />
-                )}
-                <h1
-                  style={{
-                    fontSize: '24px',
-                    margin: 0,
-                    fontWeight: '700',
-                    color: '#111827'
-                  }}
-                >
-                  SICBookReview – {anno}
-                </h1>
-              </div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+  <BookOpen size={32} color={COLORS.primary} />
+  <h1
+    style={{
+      fontSize: '24px',
+      margin: 0,
+      fontWeight: '700',
+      color: '#111827'
+    }}
+  >
+    SICBookReview – {anno}
+  </h1>
+</div>
+
               <p
                 style={{
                   marginTop: '6px',
@@ -1519,7 +1481,7 @@ const emailPanelStyle = {
               </button>
             </div>
           </div>
-                  {isAdmin && (
+                {false  && isAdmin && (
             <div
               style={{
                 marginTop: '12px',
@@ -1651,7 +1613,8 @@ const emailPanelStyle = {
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <label
+                  
+                    <label
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1687,7 +1650,7 @@ const emailPanelStyle = {
                   )}
                 </div>
               </div>
-            </div>
+            </div> 
           )}
 
           {message.text && (
