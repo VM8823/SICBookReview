@@ -995,7 +995,8 @@ const [filterStatus, setFilterStatus] = useState('all');
   const appWrapperStyle = {
   minHeight: '100vh',
   width: '100vw',           // <-- FORZO LA LARGHEZZA A TUTTO SCHERMO
-  overflowX: 'hidden',      // <-- evita eventuali scrollbar orizzontali
+  // overflowX: 'hidden',      // <-- evita eventuali scrollbar orizzontali
+  // overflowY: 'auto',       // <-- scrollbar verticale se serve
   padding: '20px 24px',     // un po' di respiro ai bordi
   backgroundImage: backgroundImage
     ? `url(${backgroundImage})`
@@ -1015,30 +1016,37 @@ const appInnerStyle = {
   boxSizing: 'border-box'
 };
 
-  const headerCardStyle = {
-    position: 'sticky',
-    top: 0,
-    zIndex: 40,
-    background: 'rgba(255,255,255,0.96)',
-    backdropFilter: 'blur(12px)',
-    borderRadius: '16px',
-    boxShadow: '0 8px 20px rgba(0,0,0,0.1)',
-    padding: '20px 24px',
-    marginBottom: '30px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16
-  };
-
-  const emailPanelStyle = {
-  background: 'rgba(255,255,255,0.96)',
+  // HEADER in alto, sempre visibile
+const mainHeaderStyle = {
+  position: 'sticky',
+  top: 0,
+  zIndex: 100,
+  background: 'rgba(255,255,255,0.97)',
+  backdropFilter: 'blur(12px)',
   borderRadius: '16px',
-  boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.16)',
   padding: '20px 24px',
-  marginTop: '24px',
+  marginBottom: '24px',
   display: 'flex',
   flexDirection: 'column',
   gap: 16
+};
+
+// Card “normali” (es. pannello configurazione email admin)
+const panelCardStyle = {
+  background: 'rgba(255,255,255,0.97)',
+  borderRadius: '16px',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
+  padding: '20px 24px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 16
+};
+
+const emailPanelStyle = {
+  ...panelCardStyle,
+  marginTop: '24px',
+  marginBottom: '24px'
 };
 
   const cardGridStyle = {
@@ -1047,6 +1055,7 @@ const appInnerStyle = {
     // auto-fill riempie la riga disponibile
     gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
     gap: '30px', 
+    marginTop: '16px',
     marginBottom: '40px',
     alignItems: 'start'
   };
@@ -1114,14 +1123,24 @@ const appInnerStyle = {
   if (showLogin) {
     return (
       <div style={appWrapperStyle}>
-        <div style={appInnerStyle}>
-          <div
-            style={{
-              ...headerCardStyle,
-              maxWidth: '640px',
-              margin: '40px auto'
-            }}
-          >
+         <div
+        style={{
+          ...appInnerStyle,
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div
+          style={{
+            ...panelCardStyle,
+            width: '100%',
+            maxWidth: '900px',   // larghezza “desktop” comoda
+            margin: 0,            // niente margine extra
+          }}
+        >
+
             {/* LOGHI + TITOLO */}
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               {/* Logo PMI-SIC centrato in alto (se caricato) */}
@@ -1264,7 +1283,7 @@ const appInnerStyle = {
     <div style={appWrapperStyle}>
       <div style={appInnerStyle}>
         {/* HEADER STICKY */}
-        <div style={headerCardStyle}>
+        <div style={mainHeaderStyle}>
           <div
             style={{
               display: 'flex',
