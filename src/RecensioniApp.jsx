@@ -193,6 +193,8 @@ const RecensioniApp = () => {
   const [anno, setAnno] = useState(2026); // Anno corrente da reinizializzare annualmente
   const [libri, setLibri] = useState([]);
   const [backgroundImage, setBackgroundImage] = useState('');
+  const [pmiLogo, setPmiLogo] = useState('');
+  const [sicLogo, setSicLogo] = useState('');
   const [selectedBook, setSelectedBook] = useState(null);
   const [recensoreData, setRecensoreData] = useState({
     mese: '',
@@ -339,12 +341,23 @@ const [filterStatus, setFilterStatus] = useState('all');
       }
 
       // Sfondo e config email da localStorage
-      const bgResult = await storage.get('background_image');
+            const bgResult = await storage.get('background_image');
       if (bgResult) {
         setBackgroundImage(bgResult.value);
       }
 
+      const pmiLogoResult = await storage.get('pmi_logo');
+      if (pmiLogoResult) {
+        setPmiLogo(pmiLogoResult.value);
+      }
+
+      const sicLogoResult = await storage.get('sic_logo');
+      if (sicLogoResult) {
+        setSicLogo(sicLogoResult.value);
+      }
+
       const emailCfg = await storage.get('email_config');
+
       if (emailCfg) {
         setEmailConfig((prev) => ({
           ...prev,
@@ -581,6 +594,51 @@ const [filterStatus, setFilterStatus] = useState('all');
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+    const clearBackgroundImage = async () => {
+    try {
+      setBackgroundImage('');
+      await storage.set('background_image', '');
+    } catch (error) {
+      console.error('Errore rimozione sfondo', error);
+    }
+  };
+
+    const handleLogoUpload = (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target.result;
+      try {
+        if (type === 'pmi') {
+          setPmiLogo(base64);
+          await storage.set('pmi_logo', base64);
+        } else if (type === 'sic') {
+          setSicLogo(base64);
+          await storage.set('sic_logo', base64);
+        }
+      } catch (err) {
+        console.error('Errore salvataggio logo', err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoRemove = async (type) => {
+    try {
+      if (type === 'pmi') {
+        setPmiLogo('');
+        await storage.set('pmi_logo', '');
+      } else if (type === 'sic') {
+        setSicLogo('');
+        await storage.set('sic_logo', '');
+      }
+    } catch (err) {
+      console.error('Errore rimozione logo', err);
     }
   };
 
@@ -959,7 +1017,7 @@ const appInnerStyle = {
 
   const headerCardStyle = {
     position: 'sticky',
-    top: 10,
+    top: 0,
     zIndex: 40,
     background: 'rgba(255,255,255,0.96)',
     backdropFilter: 'blur(12px)',
@@ -971,6 +1029,17 @@ const appInnerStyle = {
     flexDirection: 'column',
     gap: 16
   };
+
+  const emailPanelStyle = {
+  background: 'rgba(255,255,255,0.96)',
+  borderRadius: '16px',
+  boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
+  padding: '20px 24px',
+  marginTop: '24px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 16
+};
 
   const cardGridStyle = {
     display: 'grid',
@@ -1028,7 +1097,7 @@ const appInnerStyle = {
 
   // Stili input e label (accessori)
   const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' };
-  const inputStyle = { width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '8px 12px', fontSize: '14px' };
+  const inputStyle = { width: '100%', maxWidth: '100%', boxSizing: 'border-box', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '8px 12px', fontSize: '14px' };
     const smallTagStyle = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -1044,106 +1113,83 @@ const appInnerStyle = {
   // --- SCHERMATA LOGIN ---
   if (showLogin) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'stretch',
-          background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.secondary}, ${COLORS.primary})`,
-          padding: '0',
-          fontFamily:
-            'Arial, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-        }}
-      >
-        <div
-          style={{
-            background: '#ffffff',
-            width: '100%',
-            maxWidth: '480px',
-            minHeight: '100vh',
-            boxShadow: '0 0 40px rgba(15,23,42,0.25)',
-            padding: '32px 32px 40px 32px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            margin: '0 auto'
-          }}
-        >
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <BookOpen
-              size={56}
-              color={COLORS.primary}
-              style={{ marginBottom: '12px' }}
-            />
-            <h1
-              style={{
-                fontSize: '26px',
-                fontWeight: '700',
-                color: '#111827',
-                margin: 0
-              }}
-            >
-              SIC Book Review
-            </h1>
-            <p style={{ color: '#6b7280', marginTop: '8px' }}>
-              Seleziona il tuo ruolo
-            </p>
-          </div>
+      <div style={appWrapperStyle}>
+        <div style={appInnerStyle}>
+          <div
+            style={{
+              ...headerCardStyle,
+              maxWidth: '640px',
+              margin: '40px auto'
+            }}
+          >
+            {/* LOGHI + TITOLO */}
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              {/* Logo PMI-SIC centrato in alto (se caricato) */}
+              {pmiLogo && (
+                <img
+                  src={pmiLogo}
+                  alt="PMI-SIC"
+                  style={{
+                    maxWidth: '200px',
+                    maxHeight: '80px',
+                    objectFit: 'contain',
+                    marginBottom: '16px'
+                  }}
+                />
+              )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <button
-              onClick={() => {
-                setShowLogin(false);
-                setIsAdmin(false);
-              }}
-              style={{
-                width: '100%',
-                background: COLORS.primary,
-                color: '#ffffff',
-                padding: '10px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8
-              }}
-            >
-              <User size={18} />
-              Accedi come Recensore
-            </button>
-
-            <div
-              style={{
-                borderTop: '1px solid #e5e7eb',
-                paddingTop: '12px',
-                marginTop: '8px'
-              }}
-            >
-              <input
-                type="password"
-                placeholder="Password amministratore"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              {/* Riga con logo SIC e titolo */}
+              <div
                 style={{
-                  width: '100%',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  padding: '8px 12px',
-                  marginBottom: '8px',
-                  fontSize: '14px'
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: 10,
+                  marginBottom: 4
                 }}
-              />
+              >
+                {sicLogo ? (
+                  <img
+                    src={sicLogo}
+                    alt="SIC Book Review"
+                    style={{
+                      height: '32px',
+                      width: 'auto',
+                      objectFit: 'contain'
+                    }}
+                  />
+                ) : !pmiLogo ? (
+                  // Se non c'è nessun logo, fallback sull'icona libro
+                  <BookOpen size={32} color={COLORS.primary} />
+                ) : null}
+
+                <h1
+                  style={{
+                    fontSize: '26px',
+                    fontWeight: '700',
+                    color: '#111827',
+                    margin: 0
+                  }}
+                >
+                  SIC Book Review – {anno}
+                </h1>
+              </div>
+
+              <p style={{ color: '#6b7280', marginTop: '8px' }}>
+                Seleziona il tuo ruolo
+              </p>
+            </div>
+
+            {/* BOTTONI RUOLO + LOGIN ADMIN */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <button
-                onClick={handleLogin}
+                onClick={() => {
+                  setShowLogin(false);
+                  setIsAdmin(false);
+                }}
                 style={{
                   width: '100%',
-                  background: '#374151',
+                  background: COLORS.primary,
                   color: '#ffffff',
                   padding: '10px 16px',
                   borderRadius: '10px',
@@ -1157,9 +1203,55 @@ const appInnerStyle = {
                   gap: 8
                 }}
               >
-                <Lock size={18} />
-                Accedi come Amministratore
+                <User size={18} />
+                Accedi come Recensore
               </button>
+
+              <div
+                style={{
+                  borderTop: '1px solid #e5e7eb',
+                  paddingTop: '12px',
+                  marginTop: '8px'
+                }}
+              >
+                <input
+                  type="password"
+                  placeholder="Password amministratore"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  style={{
+                    width: '100%',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    padding: '8px 12px',
+                    marginBottom: '8px',
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  onClick={handleLogin}
+                  style={{
+                    width: '100%',
+                    background: '#374151',
+                    color: '#ffffff',
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
+                  }}
+                >
+                  <Lock size={18} />
+                  Accedi come Amministratore
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1183,8 +1275,20 @@ const appInnerStyle = {
             }}
           >
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <BookOpen size={32} color={COLORS.primary} />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {sicLogo ? (
+                  <img
+                    src={sicLogo}
+                    alt="SIC Book Review"
+                    style={{
+                      height: '32px',
+                      width: 'auto',
+                      objectFit: 'contain'
+                    }}
+                  />
+                ) : (
+                  <BookOpen size={32} color={COLORS.primary} />
+                )}
                 <h1
                   style={{
                     fontSize: '24px',
@@ -1334,28 +1438,46 @@ const appInnerStyle = {
                     <Save size={14} />
                     Salva
                   </button>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      background: COLORS.secondary,
-                      color: '#ffffff',
-                      borderRadius: '8px',
-                      padding: '8px 10px',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Upload size={14} />
-                    Sfondo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleImageUpload(e)}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: COLORS.secondary,
+                        color: '#ffffff',
+                        borderRadius: '8px',
+                        padding: '8px 10px',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Upload size={14} />
+                      Sfondo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e)}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    {backgroundImage && (
+                      <button
+                        onClick={clearBackgroundImage}
+                        style={{
+                          borderRadius: '8px',
+                          border: '1px solid #e5e7eb',
+                          background: '#ffffff',
+                          color: '#374151',
+                          fontSize: '12px',
+                          padding: '8px 10px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Rimuovi sfondo
+                      </button>
+                    )}
+                  </div>
                 </>
               )}
               <button
@@ -1378,6 +1500,176 @@ const appInnerStyle = {
               </button>
             </div>
           </div>
+                  {isAdmin && (
+            <div
+              style={{
+                marginTop: '12px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 16
+              }}
+            >
+              {/* Logo PMI-SIC (login) */}
+              <div
+                style={{
+                  background: '#f9fafb',
+                  borderRadius: '12px',
+                  padding: '10px 12px',
+                  border: '1px solid #e5e7eb',
+                  minWidth: '240px'
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 8
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#111827'
+                    }}
+                  >
+                    Logo PMI-SIC (pagina iniziale)
+                  </span>
+                  {pmiLogo && (
+                    <button
+                      onClick={() => handleLogoRemove('pmi')}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '11px',
+                        color: '#ef4444',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Rimuovi
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      color: '#111827'
+                    }}
+                  >
+                    <Upload size={14} />
+                    Carica logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleLogoUpload(e, 'pmi')}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  {pmiLogo && (
+                    <img
+                      src={pmiLogo}
+                      alt="PMI-SIC preview"
+                      style={{
+                        height: '32px',
+                        width: 'auto',
+                        objectFit: 'contain'
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Logo SIC Book Review (header app) */}
+              <div
+                style={{
+                  background: '#f9fafb',
+                  borderRadius: '12px',
+                  padding: '10px 12px',
+                  border: '1px solid #e5e7eb',
+                  minWidth: '240px'
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 8
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#111827'
+                    }}
+                  >
+                    Logo SIC Book Review
+                  </span>
+                  {sicLogo && (
+                    <button
+                      onClick={() => handleLogoRemove('sic')}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '11px',
+                        color: '#ef4444',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Rimuovi
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      color: '#111827'
+                    }}
+                  >
+                    <Upload size={14} />
+                    Carica logo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleLogoUpload(e, 'sic')}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  {sicLogo && (
+                    <img
+                      src={sicLogo}
+                      alt="SIC Book Review preview"
+                      style={{
+                        height: '32px',
+                        width: 'auto',
+                        objectFit: 'contain'
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {message.text && (
   <div
@@ -2161,11 +2453,8 @@ const appInnerStyle = {
         {/* PANNELLO CONFIGURAZIONE EMAIL (solo admin) */}
         {isAdmin && (
           <div
-            style={{
-              ...headerCardStyle,
-              marginTop: '24px'
-            }}
-          >
+            style={emailPanelStyle}
+            >
             <h2
               style={{
                 fontSize: '18px',
