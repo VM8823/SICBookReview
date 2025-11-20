@@ -1769,8 +1769,14 @@ const emailPanelStyle = {
                 margin: 0
               }}
             >
-              Scrivi una email ai referenti del PMI-SIC, così che possano
-              contattarti qualora si liberasse uno slot per una recensione.
+              Scrivi una email ai{' '}
+  <a
+    href="mailto:comunicazione@pmi-sic.org;enzo.mosca@pmi-sic.org"
+    style={{ color: COLORS.primary, textDecoration: 'underline' }}
+  >
+    referenti del PMI-SIC
+  </a>
+  , così che possano contattarti qualora si liberasse uno slot per una recensione.
             </p>
           </div>
         ) : (
@@ -2424,7 +2430,7 @@ const emailPanelStyle = {
 </div>
 
 <p style={{ fontSize: '13px', color: '#4b5563', marginBottom: '14px' }}>
-  Riceverai a breve una email con tutti i dettagli operativi e il template per la recensione.
+  Clicca su "Invia email di conferma" per ricevere a breve una email con tutti i dettagli operativi e il template per la recensione.
 </p>
 
               <div
